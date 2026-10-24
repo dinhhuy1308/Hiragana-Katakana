@@ -190,7 +190,7 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
 .check{display:flex;gap:10px;align-items:center;font-size:.9rem;cursor:pointer}
 .check input{width:20px;height:20px;accent-color:var(--accent);flex:0 0 auto}
 
-/* Vocabulary + grammar */
+/* Vocabulary by topic */
 .word{position:relative}
 .word .stamp{position:absolute;top:8px;right:8px}
 .vw{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
@@ -204,14 +204,7 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
 .q-mean{font-size:1.6rem;font-weight:700;text-align:center;min-height:1.6em}
 .opt.vo{font-size:1rem;padding:12px 8px}
 .opt.kana.jw{font-size:1.25rem;padding:10px 6px}
-.gnotes{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-.gex{display:grid;gap:6px}
-.gq .gtxt{font-family:var(--f-kana);font-size:1.3rem;margin:0 0 2px;color:var(--ink)}
-.gq .gh{margin:0 0 10px;color:var(--muted);font-size:.87rem}
-.gopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
-.opt.gopt{font-family:var(--f-kana);font-size:1rem;font-weight:500;padding:10px 8px}
-.gq .fb{text-align:left;margin-top:10px;font-size:.87rem}
-.gsum{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;padding:12px 14px;background:var(--accent-soft);border-radius:10px}
+.vfilter{margin-top:12px;flex-wrap:wrap;gap:10px}
 .reset{margin-top:26px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
 
 @media (prefers-reduced-motion:no-preference){
@@ -228,7 +221,7 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
       <div class="seal" aria-hidden="true">かな</div>
       <div>
         <h1>Luyện Tiếng Nhật Sơ Cấp</h1>
-        <p class="sub">Kana, từ vựng và ngữ pháp theo giáo trình Minna no Nihongo</p>
+        <p class="sub">Bảng chữ kana và từ vựng theo chủ đề thông dụng</p>
       </div>
     </div>
     <div class="meters" id="meters"></div>
@@ -242,7 +235,6 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
   <section class="panel" id="p-the" role="tabpanel" hidden></section>
   <section class="panel" id="p-kiemtra" role="tabpanel" hidden></section>
   <section class="panel" id="p-tuvung" role="tabpanel" hidden></section>
-  <section class="panel" id="p-nguphap" role="tabpanel" hidden></section>
   <div class="reset" id="reset"></div>
 </div>
 
@@ -340,7 +332,7 @@ const ICON = {
 
 /* ---------- Storage ---------- */
 const KEY = 'luyen-kana-21-v1';
-let store = {stats:{}, gbest:{}, tab:'bang'};
+let store = {stats:{}, tab:'bang'};
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') store = Object.assign(store, s); } catch (e) {}
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 function mark(k, ok){
@@ -350,418 +342,137 @@ function mark(k, ok){
 }
 function mastered(k){ const s = store.stats[k]; return !!s && s.c >= 3 && s.c >= 2 * s.w; }
 
-/* ---------- Lessons: vocabulary + grammar (Minna no Nihongo, bài 1-5) ----------
-   v: 'chữ viết|cách đọc|nghĩa'. Bỏ trống cách đọc khi chữ viết đã là kana.
-   g: điểm ngữ pháp {t, p, ex:[[câu Nhật, nghĩa]]}. q: bài tập {j, h, o, a, e}. */
-const LESSONS = [
-{n:1, t:'Giới thiệu bản thân',
+/* ---------- Từ vựng theo chủ đề ----------
+   v: 'kana|nghĩa|kanji (tuỳ chọn)|romaji (chỉ ghi khi khác cách tự chuyển đổi)'. */
+const RO_TAB = {};
+(function(){
+  const ks = Array.from('あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ');
+  'a i u e o ka ki ku ke ko sa shi su se so ta chi tsu te to na ni nu ne no ha hi fu he ho ma mi mu me mo ya yu yo ra ri ru re ro wa wo n ga gi gu ge go za ji zu ze zo da ji zu de do ba bi bu be bo pa pi pu pe po'
+    .split(' ').forEach((r, i) => { RO_TAB[ks[i]] = r; });
+})();
+function toRomaji(src){
+  const s = Array.from(src.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60)));
+  let out = '', dbl = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i], nx = s[i + 1];
+    if (c === 'っ') { dbl = true; continue; }
+    if (c === 'ー') { out = out.replace(/[aiueo]$/, m => ({a:'ā', i:'ī', u:'ū', e:'ē', o:'ō'})[m]); continue; }
+    let r = RO_TAB[c];
+    if (!r) { out += c; continue; }
+    if (nx && 'ゃゅょ'.includes(nx)) {
+      r = (/^(sh|ch|j)i$/.test(r) ? r.slice(0, -1) : r.slice(0, -1) + 'y') + ({ゃ:'a', ゅ:'u', ょ:'o'})[nx]; i++;
+    } else if (nx && 'ぁぃぅぇぉ'.includes(nx)) {
+      r = (c === 'う' ? 'w' : r.replace(/[aiueo]+$/, '')) + ({ぁ:'a', ぃ:'i', ぅ:'u', ぇ:'e', ぉ:'o'})[nx]; i++;
+    } else if (c === 'ん' && nx && /[あいうえおやゆよ]/.test(nx)) r = "n'";
+    if (dbl) { r = (r.startsWith('ch') ? 't' : r[0]) + r; dbl = false; }
+    out += r;
+  }
+  return out.replace(/aa|uu|ee|oo|ou/g, m => ({aa:'ā', uu:'ū', ee:'ē', oo:'ō', ou:'ō'})[m]);
+}
+const TOPICS = [
+{n:1, t:'Chào hỏi',
 v:[
-'わたし||tôi','わたしたち||chúng tôi, chúng ta','あなた||bạn, anh, chị (ngôi thứ hai)','あの人|あのひと|người kia, người đó','あの方|あのかた|vị kia (lịch sự hơn あのひと)','皆さん|みなさん|các bạn, quý vị',
-'～さん||anh, chị, ông, bà (đứng sau tên)','～ちゃん||bé (gọi thân mật, thường bé gái)','～君|～くん|bé (gọi thân mật, thường bé trai)','～人|～じん|người nước ～',
-'先生|せんせい|giáo viên (khi gọi người khác)','教師|きょうし|giáo viên (nói về nghề nghiệp)','学生|がくせい|học sinh, sinh viên','会社員|かいしゃいん|nhân viên công ty','社員|しゃいん|nhân viên công ty ～ (kèm tên công ty)','銀行員|ぎんこういん|nhân viên ngân hàng','医者|いしゃ|bác sĩ','研究者|けんきゅうしゃ|nhà nghiên cứu','エンジニア||kỹ sư',
-'大学|だいがく|đại học','病院|びょういん|bệnh viện','電気|でんき|điện, đèn điện','誰|だれ|ai','どなた||vị nào (lịch sự của だれ)','～歳|～さい|～tuổi','何歳|なんさい|mấy tuổi','おいくつ||bao nhiêu tuổi (lịch sự)',
-'はい||vâng, dạ','いいえ||không','初めまして|はじめまして|rất hân hạnh được gặp (lần đầu gặp mặt)','～から来ました|～からきました|tôi đến từ ～','どうぞよろしくお願いします|どうぞよろしくおねがいします|rất mong được giúp đỡ','失礼ですが|しつれいですが|xin lỗi (khi hỏi điều riêng tư)','お名前は？|おなまえは|tên bạn là gì?',
-'アメリカ||Mỹ','イギリス||Anh','インド||Ấn Độ','インドネシア||Indonesia','韓国|かんこく|Hàn Quốc','タイ||Thái Lan','中国|ちゅうごく|Trung Quốc','ドイツ||Đức','日本|にほん|Nhật Bản','フランス||Pháp','ブラジル||Brazil','ベトナム||Việt Nam'
-],
-g:[
-{t:'N1 は N2 です: A là B',p:'Dùng để nói "A là B". Trợ từ <b>は</b> đánh dấu chủ đề của câu và đọc là <b>wa</b>, không đọc là ha. <b>です</b> đứng cuối câu, làm câu lịch sự và không có nghĩa riêng. Tên người và chức danh đều đứng trước は.',ex:[['わたしは マイク・ミラーです。','Tôi là Mike Miller.'],['サントスさんは がくせいです。','Anh Santos là sinh viên.'],['わたしは ベトナムじんです。','Tôi là người Việt Nam.']]},
-{t:'N1 は N2 じゃありません: A không phải B',p:'Phủ định của です là <b>じゃ ありません</b>. Trong văn viết hoặc nói trang trọng dùng <b>ではありません</b>. Đây là cấu trúc dùng để nói "không phải".',ex:[['サントスさんは せんせいじゃ ありません。','Anh Santos không phải giáo viên.'],['わたしは エンジニアじゃ ありません。','Tôi không phải kỹ sư.'],['ミラーさんは いしゃでは ありません。','Anh Miller không phải bác sĩ.']]},
-{t:'Câu hỏi với か',p:'Thêm <b>か</b> vào cuối câu là thành câu hỏi, không cần đổi trật tự từ và lên giọng ở cuối. Với câu hỏi có/không, trả lời bằng <b>はい、そうです</b> hoặc <b>いいえ、ちがいます</b>. Với câu hỏi có từ để hỏi (だれ, なんさい…), trả lời thẳng vào thông tin được hỏi.',ex:[['ミラーさんは かいしゃいんですか。','Anh Miller là nhân viên công ty phải không?'],['はい、かいしゃいんです。','Vâng, là nhân viên công ty.'],['あの ひとは だれですか。','Người kia là ai vậy?'],['テレサちゃんは なんさいですか。','Bé Teresa mấy tuổi vậy?']]},
-{t:'N も: cũng là',p:'<b>も</b> thay cho は khi nội dung câu giống với câu trước, nghĩa là "cũng". Nếu là phủ định thì dùng cho cả "cũng không".',ex:[['ミラーさんは かいしゃいんです。グプタさんも かいしゃいんです。','Anh Miller là nhân viên công ty. Anh Gupta cũng vậy.'],['わたしも がくせいです。','Tôi cũng là sinh viên.']]},
-{t:'N1 の N2: N2 của N1',p:'<b>の</b> nối hai danh từ, danh từ đứng trước bổ nghĩa cho danh từ đứng sau. Ở bài này N1 là nơi N2 thuộc về, ví dụ công ty, trường học của một người. Thứ tự giống tiếng Việt đảo ngược: tiếng Nhật nói "của ai" trước, "cái gì" sau.',ex:[['ミラーさんは IMCの しゃいんです。','Anh Miller là nhân viên của công ty IMC.'],['ワットさんは さくら だいがくの せんせいです。','Anh Watt là giáo viên của đại học Sakura.']]},
-{t:'Mẫu giới thiệu bản thân',p:'Khi gặp lần đầu: nói <b>はじめまして</b>, đọc tên mình kèm <b>です</b>, nói mình đến từ đâu bằng <b>～から きました</b>, rồi kết thúc bằng <b>どうぞ よろしく おねがいします</b>. Không gắn <b>さん</b> sau tên của chính mình, chỉ gắn khi nói về người khác.',ex:[['はじめまして。わたしは チャンです。','Xin chào, tôi là Trần.'],['ベトナムから きました。','Tôi đến từ Việt Nam.'],['どうぞ よろしく おねがいします。','Rất mong được anh chị giúp đỡ.']]}
-],
-q:[
-{j:'わたし＿ がくせいです。',h:'Tôi là sinh viên.',o:['は','を','の','も'],a:0,e:'Trợ từ は đánh dấu chủ đề trong câu "A là B".'},
-{j:'ミラーさんは かいしゃいんです。グプタさん＿ かいしゃいんです。',h:'Anh Gupta cũng là nhân viên công ty.',o:['は','も','の','か'],a:1,e:'も nghĩa là "cũng", thay cho は khi giống với câu trước.'},
-{j:'わたしは エンジニア＿。',h:'Tôi không phải kỹ sư.',o:['です','ですか','じゃ ありません','でした'],a:2,e:'Phủ định của です là じゃ ありません.'},
-{j:'あの ひと＿ だれですか。',h:'Người kia là ai vậy?',o:['は','を','の','に'],a:0,e:'Chủ đề của câu hỏi là あの ひと nên dùng は.'},
-{j:'ミラーさんは IMC＿ しゃいんです。',h:'Anh Miller là nhân viên của công ty IMC.',o:['は','も','の','か'],a:2,e:'の nối hai danh từ: IMC の しゃいん, nhân viên của IMC.'},
-{j:'',h:'Anh Miller là nhân viên công ty, không phải sinh viên. Câu trả lời đúng cho "ミラーさんは がくせいですか。" là:',o:['いいえ、がくせいじゃ ありません。','はい、そうです。','いいえ、そうです。','はい、ちがいます。'],a:0,e:'Trả lời "không" thì dùng いいえ, và câu phủ định kết thúc bằng じゃ ありません.'},
-{j:'',h:'Câu nào dùng để hỏi tuổi một đứa bé?',o:['なんさいですか','だれですか','どこですか','なんですか'],a:0,e:'なんさい là "mấy tuổi". Với người lớn tuổi hơn thì lịch sự hơn là おいくつですか.'}
+'おはよう|chào buổi sáng','こんにちは|xin chào (ban ngày)||konnichiwa','こんばんは|chào buổi tối||konbanwa','おやすみ|chúc ngủ ngon|お休み','さようなら|tạm biệt','ありがとう|cảm ơn',
+'すみません|xin lỗi, xin phép, làm phiền','ごめんなさい|xin lỗi (thân mật hơn)','はい|vâng, dạ','いいえ|không','おねがいします|làm ơn, nhờ bạn|お願いします',
+'いただきます|xin phép ăn (nói trước bữa ăn)','ごちそうさま|cảm ơn bữa ăn (nói sau bữa ăn)','ただいま|tôi về rồi đây','おかえり|chào mừng bạn về|お帰り','いってきます|tôi đi đây|行ってきます','いってらっしゃい|bạn đi nhé|行ってらっしゃい',
+'はじめまして|rất vui được gặp (lần đầu)|初めまして','よろしく|mong được giúp đỡ','おげんきですか|bạn có khỏe không?|お元気ですか|ogenki desu ka','だいじょうぶ|không sao, ổn|大丈夫'
 ]},
-
-{n:2, t:'Đồ vật quanh ta',
+{n:2, t:'Số đếm',
 v:[
-'これ||cái này, đây (vật ở gần người nói)','それ||cái đó (gần người nghe)','あれ||cái kia (xa cả hai người)','この～||～ này','その～||～ đó','あの～||～ kia',
-'本|ほん|sách','辞書|じしょ|từ điển','雑誌|ざっし|tạp chí','新聞|しんぶん|báo','ノート||vở','手帳|てちょう|sổ tay','名刺|めいし|danh thiếp','カード||thẻ','鉛筆|えんぴつ|bút chì','ボールペン||bút bi','シャープペンシル||bút chì kim','鍵|かぎ|chìa khóa','時計|とけい|đồng hồ','傘|かさ|ô, dù','かばん||cặp sách, túi xách',
-'テレビ||ti vi','ラジオ||radio','カメラ||máy ảnh','コンピューター||máy tính','自動車|じどうしゃ|ô tô, xe hơi','机|つくえ|bàn','いす||ghế','チョコレート||sô cô la','コーヒー||cà phê','お土産|おみやげ|quà mang về khi đi xa',
-'英語|えいご|tiếng Anh','日本語|にほんご|tiếng Nhật','～語|～ご|tiếng ～','何|なん|cái gì','そう||đúng vậy','違います|ちがいます|không phải, sai rồi','そうですか||thế à','あのう||xin lỗi... (mở lời ngập ngừng)',
-'ほんの気持ちです|ほんのきもちです|đây chỉ là chút lòng thành','どうぞ||xin mời','どうも||cảm ơn (thân mật)','どうもありがとうございます||xin chân thành cảm ơn','これからお世話になります|これからおせわになります|từ nay xin được giúp đỡ','こちらこそどうぞよろしく||tôi mới là người mong được giúp đỡ'
-],
-g:[
-{t:'これ / それ / あれ: cái này, cái đó, cái kia',p:'Ba từ chỉ định dùng thay cho danh từ chỉ vật. <b>これ</b> chỉ vật ở gần người nói, <b>それ</b> chỉ vật ở gần người nghe, <b>あれ</b> chỉ vật ở xa cả hai. Chúng đứng một mình và có thể làm chủ đề câu.',ex:[['これは ほんです。','Đây là quyển sách.'],['それは かさですか。','Đó là cái ô phải không?'],['あれは なんですか。','Cái kia là cái gì vậy?']]},
-{t:'この / その / あの + N',p:'Khác với これ, các từ <b>この, その, あの</b> bắt buộc phải có danh từ đi liền sau, và cùng quy tắc xa gần với これ, それ, あれ. Không nói あの một mình thay cho vật.',ex:[['この ほんは わたしのです。','Quyển sách này là của tôi.'],['その かばんは ミラーさんのです。','Cái cặp đó là của anh Miller.'],['あの とけいは だれのですか。','Cái đồng hồ kia là của ai?']]},
-{t:'そうです / そうじゃ ありません',p:'Trả lời câu hỏi có/không xác nhận bằng <b>はい、そうです</b> khi đúng, <b>いいえ、そうじゃ ありません</b> hoặc <b>いいえ、ちがいます</b> khi sai. Với câu hỏi chọn một trong hai <b>A ですか、B ですか</b>, trả lời thẳng đáp án đúng, không dùng はい hay いいえ.',ex:[['それは ほんですか。','Đó là quyển sách phải không?'],['はい、そうです。','Vâng, đúng vậy.'],['いいえ、そうじゃ ありません。','Không, không phải.'],['これは ほんですか、ざっしですか。','Đây là sách hay là tạp chí?'],['ざっしです。','Là tạp chí.']]},
-{t:'N1 の N2: loại / chủ sở hữu',p:'<b>の</b> còn cho biết N2 nói về chủ đề N1 (sách về máy tính) hoặc N2 thuộc về ai. Khi người nghe đã hiểu rõ N2 là gì, có thể bỏ N2 và chỉ giữ <b>N1の</b>, ví dụ <b>わたしの</b> (của tôi). Chỉ làm được khi N2 là vật, không dùng cho người.',ex:[['これは コンピューターの ほんです。','Đây là sách về máy tính.'],['これは わたしの かさです。','Đây là ô của tôi.'],['この かさは わたしのです。','Cái ô này là của tôi.']]},
-{t:'なん và だれの: hỏi cái gì, của ai',p:'<b>なんですか</b> hỏi tên vật hoặc đây là cái gì. <b>だれの N ですか</b> hỏi chủ sở hữu và trả lời bằng <b>tên người + の</b>. <b>なんの N</b> hỏi loại hoặc nội dung của N.',ex:[['それは なんの ほんですか。','Đó là sách về gì vậy?'],['にほんごの ほんです。','Là sách tiếng Nhật.'],['あの かばんは だれのですか。','Cái cặp kia là của ai?'],['サントスさんのです。','Của anh Santos.']]},
-{t:'Tặng quà và đáp lại',p:'Khi đưa quà, nói <b>これ、ほんの きもちです</b> (chút lòng thành). Người nhận đáp <b>どうも ありがとうございます</b>. Khi dọn đến nhà mới hoặc gặp hàng xóm: <b>これから おせわになります</b>, đối phương đáp <b>こちらこそ どうぞ よろしく</b>.',ex:[['あのう、これ、ほんの きもちです。','À này, đây là chút lòng thành.'],['どうも ありがとうございます。','Xin cảm ơn anh.'],['こちらこそ どうぞ よろしく。','Tôi mới là người mong được giúp đỡ.']]}
-],
-q:[
-{j:'＿は ほんです。',h:'Quyển sách ở gần người nghe, ở xa người nói. Chỗ trống điền:',o:['これ','それ','あれ','この'],a:1,e:'Vật ở gần người nghe dùng それ.'},
-{j:'＿ かばんは わたしのです。',h:'Cái cặp này là của tôi.',o:['これ','それ','この','あれ'],a:2,e:'Cần danh từ (かばん) đi liền sau nên phải dùng この chứ không phải これ.'},
-{j:'これは だれ＿ かさですか。',h:'Đây là ô của ai vậy?',o:['の','は','も','を'],a:0,e:'だれの N = N của ai.'},
-{j:'',h:'"それは ほんですか。" Câu trả lời khi KHÔNG phải sách:',o:['いいえ、そうじゃ ありません。','はい、そうです。','いいえ、そうです。','はい、ちがいます。'],a:0,e:'Phủ định dùng いいえ, kèm そうじゃ ありません hoặc ちがいます.'},
-{j:'あれは なんですか。',h:'Câu trả lời tự nhiên nhất cho câu hỏi này:',o:['とけいです。','はい、そうです。','いいえ、ちがいます。','わたしのです。'],a:0,e:'なんですか hỏi tên vật nên trả lời bằng tên vật.'},
-{j:'＿ ほんは ミラーさんのです。',h:'Quyển sách ở xa cả hai người, là của anh Miller.',o:['この','その','あの','あれ'],a:2,e:'Vật ở xa cả hai là あの, đi kèm danh từ.'},
-{j:'これは コンピューター＿ ほんです。',h:'Đây là sách về máy tính.',o:['は','の','も','か'],a:1,e:'の cho biết chủ đề: sách về máy tính.'}
+'ゼロ|số 0','いち|số 1|一','に|số 2|二','さん|số 3|三','よん|số 4 (còn đọc し)|四','ご|số 5|五','ろく|số 6|六','なな|số 7 (còn đọc しち)|七','はち|số 8|八','きゅう|số 9 (còn đọc く)|九','じゅう|số 10|十',
+'ひゃく|100|百','せん|1.000|千','まん|10.000|万',
+'ひとつ|1 cái|一つ','ふたつ|2 cái|二つ','みっつ|3 cái|三つ','いくつ|mấy cái, bao nhiêu cái','いくら|bao nhiêu tiền','ひとり|1 người|一人','ふたり|2 người|二人'
 ]},
-
-{n:3, t:'Địa điểm và giá cả',
+{n:3, t:'Gia đình, con người',
 v:[
-'ここ||chỗ này, ở đây','そこ||chỗ đó','あそこ||chỗ kia','どこ||ở đâu','こちら||phía này, chỗ này (lịch sự)','そちら||phía đó (lịch sự)','あちら||phía kia (lịch sự)','どちら||phía nào, ở đâu (lịch sự)',
-'教室|きょうしつ|phòng học','食堂|しょくどう|nhà ăn','事務所|じむしょ|văn phòng','会議室|かいぎしつ|phòng họp','受付|うけつけ|quầy lễ tân','ロビー||sảnh','部屋|へや|căn phòng','トイレ||nhà vệ sinh','階段|かいだん|cầu thang','エレベーター||thang máy','エスカレーター||thang cuốn','自動販売機|じどうはんばいき|máy bán hàng tự động',
-'電話|でんわ|điện thoại','お国|おくに|đất nước (của bạn)','会社|かいしゃ|công ty','うち||nhà','靴|くつ|giày','ネクタイ||cà vạt','ワイン||rượu vang','たばこ||thuốc lá','売り場|うりば|quầy bán hàng','地下|ちか|tầng hầm',
-'～階|～かい|tầng ～','何階|なんがい|tầng mấy','～円|～えん|～yên','いくら||bao nhiêu tiền','百|ひゃく|trăm','千|せん|nghìn','万|まん|vạn (mười nghìn)',
-'すみません||xin lỗi, cho hỏi','～を見せてください|～をみせてください|xin cho tôi xem ～','～をください||xin cho tôi ～','じゃ||vậy thì','～でございます||là ～ (dạng rất lịch sự của です)'
-],
-g:[
-{t:'ここ / そこ / あそこ / どこ',p:'Bốn từ chỉ nơi chốn, cùng quy tắc xa gần với これ, それ, あれ: <b>ここ</b> gần người nói, <b>そこ</b> gần người nghe, <b>あそこ</b> xa cả hai, <b>どこ</b> dùng để hỏi. Các dạng lịch sự là <b>こちら, そちら, あちら, どちら</b>, thường dùng khi chỉ đường hoặc hỏi nơi chốn với người mới quen.',ex:[['ここは しょくどうです。','Đây là nhà ăn.'],['トイレは どこですか。','Nhà vệ sinh ở đâu?'],['あそこです。','Ở đằng kia.'],['でんわは あちらです。','Điện thoại ở phía kia ạ.']]},
-{t:'N は địa điểm です: N ở đâu',p:'Để nói người hoặc vật ở một nơi nào đó, dùng cấu trúc <b>N は ここ/そこ/あそこ です</b>. Hỏi bằng <b>N は どこですか</b>. Bài này chưa dùng động từ "ở" (います, あります) nên mọi câu vị trí đều kết thúc bằng です.',ex:[['エレベーターは あそこです。','Thang máy ở đằng kia.'],['ミラーさんは じむしょです。','Anh Miller ở văn phòng.'],['かいぎしつは どこですか。','Phòng họp ở đâu vậy?']]},
-{t:'Hỏi quê hương, công ty, nơi sản xuất',p:'Với người mới quen, dùng <b>どちら</b> để hỏi lịch sự về đất nước hay công ty: <b>おくには どちらですか</b>. <b>どこの N</b> hỏi vật đó do nước nào hoặc hãng nào sản xuất, trả lời bằng <b>tên nước/hãng + の</b>.',ex:[['おくには どちらですか。','Đất nước của anh là nước nào ạ?'],['ベトナムです。','Là Việt Nam.'],['それは どこの くるまですか。','Đó là ô tô của hãng, nước nào vậy?'],['ドイツのです。','Của Đức.']]},
-{t:'いくらですか: hỏi giá, và cách đếm số tiền',p:'<b>いくらですか</b> hỏi giá, trả lời <b>số + えん</b>. Các mốc: 百 <b>ひゃく</b> (100), 千 <b>せん</b> (1000), 万 <b>まん</b> (10000). Có biến âm: 300 <b>さんびゃく</b>, 600 <b>ろっぴゃく</b>, 800 <b>はっぴゃく</b>, 3000 <b>さんぜん</b>, 8000 <b>はっせん</b>. Với 10000 phải nói <b>いちまん</b>, không bỏ いち.',ex:[['この ワインは いくらですか。','Chai rượu này bao nhiêu tiền?'],['さんぜんえんです。','3.000 yên.'],['そのかばんは ろっぴゃくえんです。','Cái cặp đó giá 600 yên.'],['これは いちまんえんです。','Cái này 10.000 yên.']]},
-{t:'～かい: số tầng',p:'Đếm tầng bằng <b>số + かい</b>. Biến âm cần nhớ: 1 <b>いっかい</b>, 3 <b>さんがい</b>, 6 <b>ろっかい</b>, 8 <b>はっかい</b>, 10 <b>じゅっかい</b>; còn lại đọc thường như 2 <b>にかい</b>, 4 <b>よんかい</b>, 5 <b>ごかい</b>. Hỏi tầng bằng <b>なんがい</b>. Tầng hầm là <b>ちか</b>.',ex:[['うりばは なんがいですか。','Quầy bán hàng ở tầng mấy?'],['さんがいです。','Ở tầng 3.'],['しょくどうは ちか いっかいです。','Nhà ăn ở tầng hầm 1.']]},
-{t:'Mua sắm: ～を ください / ～を みせてください',p:'Khi mua hàng: <b>これを ください</b> là xin cho tôi cái này (muốn mua). <b>～を みせて ください</b> là xin cho tôi xem ～. Mở lời hỏi nhân viên bằng <b>すみません</b>. <b>じゃ</b> mở đầu khi bạn đã quyết định chọn.',ex:[['すみません、その くつを みせて ください。','Xin lỗi, cho tôi xem đôi giày đó.'],['いくらですか。','Bao nhiêu tiền vậy?'],['じゃ、これを ください。','Vậy thì cho tôi cái này.']]}
-],
-q:[
-{j:'トイレは ＿ ですか。',h:'Nhà vệ sinh ở đâu?',o:['どこ','なん','だれ','いくら'],a:0,e:'どこ dùng để hỏi nơi chốn.'},
-{j:'この ワインは ＿ ですか。',h:'Chai rượu này bao nhiêu tiền? (trả lời: 3.000 yên)',o:['なん','どこ','いくら','だれ'],a:2,e:'いくら hỏi giá tiền.'},
-{j:'しょくどうは ＿ です。',h:'Nhà ăn ở đằng kia, xa cả hai người.',o:['ここ','そこ','あそこ','どこ'],a:2,e:'Chỗ xa cả hai người nói và nghe là あそこ.'},
-{j:'',h:'Cách nói lịch sự hơn của ここ là:',o:['こちら','どちら','あちら','そちら'],a:0,e:'こちら, そちら, あちら, どちら là dạng lịch sự của ここ, そこ, あそこ, どこ.'},
-{j:'この くつを ＿。',h:'Xin cho tôi đôi giày này (tôi muốn mua).',o:['ください','です','ですか','みます'],a:0,e:'～を ください dùng để xin hoặc mua hàng.'},
-{j:'',h:'300 yên đọc là:',o:['さんびゃくえん','さんひゃくえん','みっひゃくえん','さんぜんえん'],a:0,e:'300 là さんびゃく, có biến âm びゃく.'},
-{j:'それは ＿ の とけいですか。',h:'Đồng hồ đó của nước nào, hãng nào sản xuất? (trả lời: スイスのです)',o:['どこ','だれ','なん','いくら'],a:0,e:'どこの N hỏi nơi sản xuất hoặc hãng của N.'},
-{j:'',h:'Tầng 3 đọc là:',o:['さんがい','さんかい','みっかい','さんつ'],a:0,e:'3 tầng là さんがい, có biến âm.'}
+'かぞく|gia đình|家族','おとうさん|bố|お父さん','おかあさん|mẹ|お母さん','おにいさん|anh trai|お兄さん','おねえさん|chị gái|お姉さん','おとうと|em trai|弟','いもうと|em gái|妹','おじいさん|ông','おばあさん|bà','りょうしん|bố mẹ|両親',
+'こども|con, trẻ em|子供','あかちゃん|em bé|赤ちゃん','おっと|chồng|夫','つま|vợ|妻','ともだち|bạn bè|友達',
+'ひと|người|人','おとこ|đàn ông, con trai|男','おんな|phụ nữ, con gái|女','わたし|tôi|私','あなた|bạn','せんせい|giáo viên|先生','がくせい|học sinh, sinh viên|学生'
 ]},
-
-{n:4, t:'Giờ giấc và sinh hoạt hằng ngày',
+{n:4, t:'Đồ ăn',
 v:[
-'起きます|おきます|thức dậy','寝ます|ねます|ngủ, đi ngủ','働きます|はたらきます|làm việc','休みます|やすみます|nghỉ ngơi, nghỉ làm','勉強します|べんきょうします|học','終わります|おわります|kết thúc, xong',
-'デパート||bách hóa','銀行|ぎんこう|ngân hàng','郵便局|ゆうびんきょく|bưu điện','図書館|としょかん|thư viện','美術館|びじゅつかん|bảo tàng mỹ thuật',
-'今|いま|bây giờ','～時|～じ|～giờ','～分|～ふん／ぷん|～phút','半|はん|rưỡi, nửa','何時|なんじ|mấy giờ','何分|なんぷん|mấy phút','午前|ごぜん|sáng (AM)','午後|ごご|chiều (PM)',
-'朝|あさ|buổi sáng','昼|ひる|buổi trưa','晩|ばん|buổi tối','おととい||hôm kia','昨日|きのう|hôm qua','今日|きょう|hôm nay','明日|あした|ngày mai','あさって||ngày kia','今朝|けさ|sáng nay','今晩|こんばん|tối nay',
-'休み|やすみ|nghỉ, ngày nghỉ','昼休み|ひるやすみ|nghỉ trưa','試験|しけん|kỳ thi','会議|かいぎ|cuộc họp','映画|えいが|phim','毎朝|まいあさ|mỗi sáng','毎晩|まいばん|mỗi tối','毎日|まいにち|mỗi ngày',
-'月曜日|げつようび|thứ Hai','火曜日|かようび|thứ Ba','水曜日|すいようび|thứ Tư','木曜日|もくようび|thứ Năm','金曜日|きんようび|thứ Sáu','土曜日|どようび|thứ Bảy','日曜日|にちようび|Chủ nhật','何曜日|なんようび|thứ mấy',
-'～から||từ ～','～まで||đến ～','～と||và ～','番号|ばんごう|số, mã số','何番|なんばん|số mấy','大変ですね|たいへんですね|vất vả nhỉ'
-],
-g:[
-{t:'Nói giờ: いま ～じ ～ふん です',p:'Giờ đọc <b>số + じ</b>, phút đọc <b>số + ふん/ぷん</b>, 30 phút nói là <b>はん</b>. Cần nhớ: 4 giờ là <b>よじ</b>, 7 giờ <b>しちじ</b>, 9 giờ <b>くじ</b>. Phút có biến âm: 1 <b>いっぷん</b>, 3 <b>さんぷん</b>, 4 <b>よんぷん</b>, 6 <b>ろっぷん</b>, 8 <b>はっぷん</b>, 10 <b>じゅっぷん</b>; còn lại đọc <b>ふん</b> (2 にふん, 5 ごふん, 7 ななふん, 9 きゅうふん). Trước giờ có thể thêm <b>ごぜん</b> (sáng) và <b>ごご</b> (chiều).',ex:[['いま なんじですか。','Bây giờ là mấy giờ vậy?'],['いま 4じ 5ふんです。','Bây giờ là 4 giờ 5 phút.'],['ごぜん 9じ はんです。','9 giờ rưỡi sáng.']]},
-{t:'V ます: động từ lịch sự (hiện tại và quá khứ)',p:'Động từ dạng lịch sự kết thúc bằng <b>ます</b>. Có bốn dạng: <b>～ます</b> (thói quen hoặc tương lai), <b>～ません</b> (không), <b>～ました</b> (đã làm), <b>～ませんでした</b> (đã không làm). Trong tiếng Nhật, hiện tại và tương lai dùng chung một dạng, người nghe dựa vào từ chỉ thời gian để hiểu.',ex:[['まいあさ 6じに おきます。','Mỗi sáng tôi dậy lúc 6 giờ.'],['きのう べんきょうしました。','Hôm qua tôi đã học bài.'],['けさ はたらきませんでした。','Sáng nay tôi đã không làm việc.']]},
-{t:'N(thời gian) に V: vào lúc ...',p:'Trợ từ <b>に</b> đứng sau thời điểm cụ thể (giờ, thứ, ngày tháng) để cho biết hành động xảy ra lúc nào. Các từ chỉ thời gian tương đối như <b>きょう, あした, きのう, けさ, まいあさ, まいにち</b> thì <b>không</b> thêm に.',ex:[['わたしは 6じはんに おきます。','Tôi dậy lúc 6 giờ rưỡi.'],['にちようびに やすみます。','Tôi nghỉ vào Chủ nhật.'],['まいにち べんきょうします。','Tôi học mỗi ngày.']]},
-{t:'N1 から N2 まで: từ ... đến ...',p:'<b>から</b> chỉ điểm bắt đầu, <b>まで</b> chỉ điểm kết thúc, dùng cho cả giờ giấc và địa điểm. Có thể dùng riêng một trong hai. Khi đứng cuối câu hỏi hoặc trả lời thì thêm <b>です</b>.',ex:[['ぎんこうは 9じから 3じまでです。','Ngân hàng làm việc từ 9 giờ đến 3 giờ.'],['わたしは 9じから 5じまで はたらきます。','Tôi làm việc từ 9 đến 5 giờ.'],['ひるやすみは 12じから 1じまでです。','Nghỉ trưa từ 12 giờ đến 1 giờ.']]},
-{t:'N1 と N2: và',p:'<b>と</b> nối hai danh từ với nghĩa "và", chỉ dùng nối danh từ, không nối câu hay động từ.',ex:[['ぎんこうと ゆうびんきょくは やすみです。','Ngân hàng và bưu điện đều nghỉ.'],['げつようびと かようびは やすみです。','Thứ Hai và thứ Ba là ngày nghỉ.']]},
-{t:'Thứ trong tuần và ～ね',p:'Thứ đều kết thúc bằng <b>ようび</b>: <b>げつ, か, すい, もく, きん, ど, にち</b>. Hỏi bằng <b>なんようび</b>. Trợ từ cuối câu <b>ね</b> thể hiện sự đồng cảm hoặc nhờ người nghe xác nhận, như "nhỉ", "nhé".',ex:[['きょうは なんようびですか。','Hôm nay là thứ mấy vậy?'],['きんようびです。','Là thứ Sáu.'],['まいにち 10じまで はたらきます。','Mỗi ngày tôi làm việc đến 10 giờ.'],['たいへんですね。','Vất vả nhỉ.']]}
-],
-q:[
-{j:'いま ＿ ですか。',h:'Bây giờ là mấy giờ vậy? (trả lời: 9 giờ 15 phút)',o:['なんじ','なんぷん','なんようび','いくら'],a:0,e:'なんじ hỏi giờ.'},
-{j:'まいあさ 6じ＿ おきます。',h:'Mỗi sáng tôi dậy lúc 6 giờ.',o:['に','を','で','の'],a:0,e:'Thời điểm cụ thể (6じ) đi với に.'},
-{j:'',h:'Từ nào sau đây KHÔNG cần thêm に khi đứng trước động từ?',o:['まいにち','7じ','にちようび','3じはん'],a:0,e:'まいにち là từ chỉ thời gian tương đối nên không cần に.'},
-{j:'きのう わたしは はたらき＿。',h:'Hôm qua tôi không làm việc.',o:['ません','ませんでした','ます','ました'],a:1,e:'Hôm qua là quá khứ và phủ định nên dùng ませんでした.'},
-{j:'ぎんこうは 9じ＿ 3じ＿ です。',h:'Ngân hàng làm việc từ 9 giờ đến 3 giờ.',o:['から／まで','まで／から','に／に','と／と'],a:0,e:'から là bắt đầu, まで là kết thúc.'},
-{j:'5じ＿ に かえります。',h:'Tôi về lúc 5 giờ rưỡi.',o:['はん','ふん','ぷん','じ'],a:0,e:'30 phút gọi là はん (rưỡi).'},
-{j:'',h:'4 giờ đọc là:',o:['よじ','しじ','よんじ','よつじ'],a:0,e:'4 giờ là よじ, ngoại lệ cần nhớ.'}
+'ごはん|cơm, bữa ăn|ご飯','パン|bánh mì','たまご|trứng|卵','にく|thịt|肉','さかな|cá|魚','やさい|rau củ|野菜','くだもの|trái cây|果物','りんご|táo','バナナ|chuối','みかん|quýt',
+'すし|sushi','ラーメン|mì ramen','うどん|mì udon','おにぎり|cơm nắm','カレー|cà ri','サラダ|salad','ハンバーガー|bánh hamburger','ピザ|pizza',
+'ケーキ|bánh kem, bánh ngọt','アイスクリーム|kem','チョコレート|sô cô la','おかし|bánh kẹo|お菓子','さとう|đường|砂糖','しお|muối|塩','チーズ|phô mai'
 ]},
-
-{n:5, t:'Đi lại và ngày tháng',
+{n:5, t:'Đồ uống, quán ăn',
 v:[
-'行きます|いきます|đi','来ます|きます|đến','帰ります|かえります|về','学校|がっこう|trường học','スーパー||siêu thị','駅|えき|ga tàu',
-'飛行機|ひこうき|máy bay','船|ふね|tàu thủy','電車|でんしゃ|tàu điện','地下鉄|ちかてつ|tàu điện ngầm','新幹線|しんかんせん|tàu cao tốc shinkansen','バス||xe buýt','タクシー||taxi','自転車|じてんしゃ|xe đạp','歩いて|あるいて|đi bộ',
-'人|ひと|người','友達|ともだち|bạn bè','彼|かれ|anh ấy, bạn trai','彼女|かのじょ|cô ấy, bạn gái','家族|かぞく|gia đình','一人で|ひとりで|một mình',
-'先週|せんしゅう|tuần trước','今週|こんしゅう|tuần này','来週|らいしゅう|tuần sau','先月|せんげつ|tháng trước','今月|こんげつ|tháng này','来月|らいげつ|tháng sau','去年|きょねん|năm ngoái','今年|ことし|năm nay','来年|らいねん|năm sau',
-'～月|～がつ|tháng ～','何月|なんがつ|tháng mấy','1日|ついたち|ngày mùng 1','2日|ふつか|ngày mùng 2','3日|みっか|ngày mùng 3','4日|よっか|ngày mùng 4','5日|いつか|ngày mùng 5','6日|むいか|ngày mùng 6','7日|なのか|ngày mùng 7','8日|ようか|ngày mùng 8','9日|ここのか|ngày mùng 9','10日|とおか|ngày mùng 10','14日|じゅうよっか|ngày 14','20日|はつか|ngày 20','24日|にじゅうよっか|ngày 24','～日|～にち|ngày ～','何日|なんにち|ngày mấy',
-'いつ||khi nào','誕生日|たんじょうび|sinh nhật','普通|ふつう|tàu thường (dừng mọi ga)','急行|きゅうこう|tàu tốc hành','特急|とっきゅう|tàu tốc hành đặc biệt','次の|つぎの|tiếp theo'
-],
-g:[
-{t:'N(địa điểm) へ いきます / きます / かえります',p:'Ba động từ chuyển động <b>đi, đến, về</b> dùng trợ từ <b>へ</b> (viết là へ nhưng đọc là <b>e</b>) để chỉ hướng đến địa điểm. Để phủ định hoàn toàn "không đi đâu cả" dùng <b>どこ[へ]も いきません</b>.',ex:[['わたしは きょうとへ いきます。','Tôi đi Kyoto.'],['ともだちは にほんへ きました。','Bạn tôi đã đến Nhật.'],['きのうは どこへも いきませんでした。','Hôm qua tôi không đi đâu cả.']]},
-{t:'N(phương tiện) で いきます',p:'Trợ từ <b>で</b> chỉ phương tiện đi lại: tàu điện, xe buýt, taxi, xe đạp... Riêng đi bộ thì nói <b>あるいて</b>, không có で. Hỏi phương tiện bằng <b>なんで</b>.',ex:[['でんしゃで かいしゃへ いきます。','Tôi đi đến công ty bằng tàu điện.'],['あるいて がっこうへ いきます。','Tôi đi bộ đến trường.'],['なんで きましたか。','Bạn đến bằng gì vậy?']]},
-{t:'N(người) と いきます: đi cùng ai',p:'Trợ từ <b>と</b> sau người hoặc con vật nghĩa là "cùng với". Khi đi một mình thì dùng <b>ひとりで</b>, không dùng と.',ex:[['かぞくと にほんへ きました。','Tôi đã đến Nhật cùng gia đình.'],['ともだちと えいがへ いきます。','Tôi đi xem phim với bạn.'],['ひとりで かえります。','Tôi về một mình.']]},
-{t:'いつ: khi nào',p:'<b>いつ</b> hỏi thời điểm. Khác với giờ giấc cụ thể, sau <b>いつ</b> không thêm に. Có thể trả lời bằng ngày tháng, tuần, năm.',ex:[['いつ にほんへ きましたか。','Bạn đã đến Nhật khi nào?'],['たんじょうびは いつですか。','Sinh nhật bạn là khi nào?'],['4がつ 8かです。','Là ngày 8 tháng 4.']]},
-{t:'Tháng, ngày, tuần, năm',p:'Tháng: số + <b>がつ</b>; chú ý 4 <b>しがつ</b>, 7 <b>しちがつ</b>, 9 <b>くがつ</b>. Ngày mùng 1 đến 10 đọc bất quy tắc: <b>ついたち, ふつか, みっか, よっか, いつか, むいか, なのか, ようか, ここのか, とおか</b>. Ngoài ra nhớ 14 <b>じゅうよっか</b>, 20 <b>はつか</b>, 24 <b>にじゅうよっか</b>, còn lại số + <b>にち</b>. Các từ <b>せんしゅう, こんしゅう, らいしゅう, せんげつ, らいげつ, きょねん, ことし, らいねん</b> là thời gian tương đối nên không có に.',ex:[['らいしゅう にほんへ いきます。','Tuần sau tôi sẽ đi Nhật.'],['きょうは なんがつ なんにちですか。','Hôm nay là ngày mấy tháng mấy?'],['しがつ ここのかです。','Là ngày 9 tháng 4.']]},
-{t:'～よ: nhấn mạnh thông tin',p:'Trợ từ cuối câu <b>よ</b> dùng khi bạn muốn người nghe biết thông tin mà họ có thể chưa biết, giống như "đấy", "nhé". Dùng với người ngang hàng hoặc cấp dưới; với người trên, nói nhẹ nhàng hơn.',ex:[['この でんしゃは おおさかへ いきますか。','Tàu này có đi Osaka không?'],['いいえ、いきません。つぎの ふつうですよ。','Không, không đi. Chuyến tàu thường kế tiếp mới đi đấy.']]}
-],
-q:[
-{j:'わたしは がっこう＿ いきます。',h:'Tôi đi đến trường.',o:['へ','で','と','も'],a:0,e:'Hướng đến địa điểm dùng へ (đọc là e).'},
-{j:'でんしゃ＿ かいしゃへ いきます。',h:'Tôi đi đến công ty bằng tàu điện.',o:['で','へ','と','を'],a:0,e:'Phương tiện dùng で.'},
-{j:'ともだち＿ えいがへ いきます。',h:'Tôi đi xem phim cùng bạn.',o:['と','で','へ','が'],a:0,e:'Đi cùng người nào thì dùng と.'},
-{j:'＿ がっこうへ いきます。',h:'Tôi đi bộ đến trường.',o:['あるいて','あるいてで','あるきで','あるくで'],a:0,e:'Đi bộ dùng あるいて, không thêm で.'},
-{j:'きのうは どこ＿ いきませんでした。',h:'Hôm qua tôi không đi đâu cả.',o:['へも','へが','をも','にも'],a:0,e:'Phủ định hoàn toàn dùng どこ[へ]も + động từ phủ định.'},
-{j:'',h:'Ngày 9 tháng 4 đọc là:',o:['しがつ ここのか','よんがつ ここのか','しがつ きゅうか','しがつ くにち'],a:0,e:'Tháng 4 là しがつ, ngày 9 là ここのか.'},
-{j:'ひとり＿ かえります。',h:'Tôi về một mình.',o:['で','と','へ','に'],a:0,e:'ひとりで nghĩa là một mình.'},
-{j:'',h:'らいしゅう nghĩa là:',o:['tuần sau','tuần trước','tuần này','tháng sau'],a:0,e:'らいしゅう là tuần sau.'}
+'みず|nước|水','おちゃ|trà|お茶','こうちゃ|trà đen|紅茶','コーヒー|cà phê','ぎゅうにゅう|sữa bò|牛乳','ジュース|nước ép, nước ngọt','ビール|bia','ワイン|rượu vang','おさけ|rượu, rượu sake|お酒','コーラ|cô-ca','おゆ|nước nóng|お湯','スープ|súp',
+'のみもの|đồ uống|飲み物','たべもの|đồ ăn|食べ物',
+'レストラン|nhà hàng','カフェ|quán cà phê','メニュー|thực đơn','コップ|cái cốc','はし|đũa|箸','フォーク|cái nĩa','スプーン|cái thìa'
 ]},
-
-{n:6, t:'Ăn uống và các hoạt động',
+{n:6, t:'Màu sắc',
 v:[
-'食べます|たべます|ăn','飲みます|のみます|uống','吸います|すいます|hút (thuốc)','見ます|みます|xem, nhìn','聞きます|ききます|nghe','読みます|よみます|đọc','書きます|かきます|viết, vẽ','買います|かいます|mua','撮ります|とります|chụp (ảnh)','します||làm','会います|あいます|gặp (bạn bè)',
-'ご飯|ごはん|cơm, bữa ăn','朝ごはん|あさごはん|bữa sáng','昼ごはん|ひるごはん|bữa trưa','晩ごはん|ばんごはん|bữa tối','パン||bánh mì','卵|たまご|trứng','肉|にく|thịt','魚|さかな|cá','野菜|やさい|rau','果物|くだもの|trái cây',
-'水|みず|nước','お茶|おちゃ|trà','紅茶|こうちゃ|trà đen','牛乳|ぎゅうにゅう|sữa bò','ジュース||nước ép','ビール||bia','お酒|おさけ|rượu',
-'ビデオ||video','手紙|てがみ|thư','レポート||báo cáo','写真|しゃしん|ảnh','店|みせ|cửa hàng','レストラン||nhà hàng','庭|にわ|vườn','宿題|しゅくだい|bài tập về nhà','テニス||quần vợt','サッカー||bóng đá','お花見|おはなみ|ngắm hoa anh đào',
-'何|なに|cái gì','一緒に|いっしょに|cùng nhau','ちょっと||một chút','いつも||luôn luôn','時々|ときどき|thỉnh thoảng','それから||sau đó, tiếp theo','ええ||vâng','いいですね||hay quá nhỉ','わかりました||tôi hiểu rồi'
-],
-g:[
-{t:'N を V: tân ngữ của động từ',p:'Trợ từ <b>を</b> (đọc là <b>o</b>) đứng sau tân ngữ, tức đối tượng chịu tác động của hành động. Động từ như <b>たべます, のみます, みます, よみます, かきます, かいます</b> đều đi với を.',ex:[['わたしは ジュースを のみます。','Tôi uống nước ép.'],['ミラーさんは ほんを よみます。','Anh Miller đọc sách.'],['まいあさ しんぶんを みます。','Mỗi sáng tôi xem báo.']]},
-{t:'N(địa điểm) で V: làm gì ở đâu',p:'Trợ từ <b>で</b> sau địa điểm cho biết hành động diễn ra ở đâu. Đừng nhầm với <b>へ</b> (chỉ hướng di chuyển) và <b>に</b> (thời điểm). Với bài này, mọi hành động "ăn, uống, mua, đọc..." xảy ra ở đâu thì dùng で.',ex:[['スーパーで パンを かいます。','Tôi mua bánh mì ở siêu thị.'],['としょかんで ほんを よみます。','Tôi đọc sách ở thư viện.'],['レストランで ひるごはんを たべます。','Tôi ăn trưa ở nhà hàng.']]},
-{t:'なにを V ますか / なにも V ません',p:'Hỏi hành động bằng <b>なにを V ますか</b>. Câu trả lời phủ định hoàn toàn dùng <b>なにも + V ません</b> ("không ... gì cả"), tương tự どこへも ở bài 5.',ex:[['あした なにを しますか。','Ngày mai bạn làm gì?'],['サッカーを します。','Tôi chơi bóng đá.'],['けさ なにも たべませんでした。','Sáng nay tôi không ăn gì cả.']]},
-{t:'N を します',p:'<b>します</b> kết hợp với danh từ để tạo thành nhiều hành động: chơi thể thao, tổ chức sự kiện, làm bài... Ví dụ <b>サッカーを します</b> (chơi bóng đá), <b>しゅくだいを します</b> (làm bài tập), <b>パーティーを します</b> (tổ chức tiệc).',ex:[['ともだちと テニスを します。','Tôi chơi quần vợt với bạn.'],['うちで しゅくだいを します。','Tôi làm bài tập ở nhà.'],['おはなみを しました。','Chúng tôi đã đi ngắm hoa anh đào.']]},
-{t:'V ませんか / V ましょう: rủ và đồng ý',p:'<b>V ませんか</b> là lời mời lịch sự: "cùng ... nhé?". Đáp đồng ý bằng <b>ええ、V ましょう</b> (vâng, cùng làm nào). <b>V ましょう</b> cũng dùng để chủ động đề nghị, ví dụ "nghỉ một chút nào". Nếu từ chối, nói <b>すみません、ちょっと...</b> rồi nêu lý do.',ex:[['いっしょに ひるごはんを たべませんか。','Cùng ăn trưa nhé?'],['ええ、たべましょう。','Vâng, cùng ăn nào.'],['ちょっと やすみましょう。','Chúng ta nghỉ một chút nhé.']]},
-{t:'Các từ hay gặp: いつも, ときどき, それから; N に あいます',p:'<b>いつも</b> là luôn luôn, <b>ときどき</b> là thỉnh thoảng, <b>それから</b> nối hai hành động liên tiếp. Với <b>あいます</b> (gặp), người được gặp đi kèm trợ từ <b>に</b>.',ex:[['いつも あさごはんを たべます。','Tôi luôn ăn sáng.'],['ときどき えいがを みます。','Thỉnh thoảng tôi xem phim.'],['あした ともだちに あいます。','Ngày mai tôi gặp bạn.']]}
-],
-q:[
-{j:'わたしは みずを ＿。',h:'Tôi uống nước.',o:['のみます','たべます','みます','かきます'],a:0,e:'Uống nước là のみます.'},
-{j:'まいあさ パン＿ たべます。',h:'Mỗi sáng tôi ăn bánh mì.',o:['を','で','に','が'],a:0,e:'Tân ngữ của động từ たべます dùng を.'},
-{j:'レストラン＿ ひるごはんを たべます。',h:'Tôi ăn trưa ở nhà hàng.',o:['で','を','に','へ'],a:0,e:'Nơi diễn ra hành động dùng で.'},
-{j:'いっしょに ビールを ＿。',h:'Cùng uống bia nhé? (lời mời)',o:['のみませんか','のみましょう','のみました','のみません'],a:0,e:'V ませんか là lời mời lịch sự.'},
-{j:'',h:'Đáp đồng ý lời mời "いっしょに ひるごはんを たべませんか。":',o:['ええ、たべましょう。','ええ、たべました。','いいえ、たべます。','ええ、たべませんか。'],a:0,e:'Đồng ý lời mời thì dùng ええ、V ましょう.'},
-{j:'なに＿ たべますか。',h:'Bạn ăn gì?',o:['を','に','で','へ'],a:0,e:'なにを V ますか hỏi tân ngữ của động từ.'},
-{j:'うちで しゅくだい＿ します。',h:'Tôi làm bài tập ở nhà.',o:['を','が','に','と'],a:0,e:'N を します tạo thành hành động làm gì đó.'}
+'いろ|màu sắc|色','あか|đỏ|赤','あお|xanh dương (cũng dùng cho xanh lá)|青','きいろ|vàng|黄色','みどり|xanh lá|緑','しろ|trắng|白','くろ|đen|黒','ちゃいろ|nâu|茶色','はいいろ|xám|灰色','むらさき|tím|紫',
+'ピンク|hồng','オレンジ|cam','グレー|xám (mượn từ tiếng Anh)','ブルー|xanh dương (mượn từ tiếng Anh)','きん|vàng kim|金','ぎん|bạc|銀','あかるい|sáng|明るい','くらい|tối|暗い'
 ]},
-
-{n:7, t:'Tặng, nhận và cho mượn',
+{n:7, t:'Thời gian, ngày tháng',
 v:[
-'切ります|きります|cắt','送ります|おくります|gửi','あげます||tặng, cho','もらいます||nhận','貸します|かします|cho mượn','借ります|かります|mượn','教えます|おしえます|dạy, chỉ cho','習います|ならいます|học (từ ai đó)','かけます||gọi (điện thoại)',
-'手|て|tay','箸|はし|đũa','スプーン||thìa','ナイフ||dao ăn','フォーク||nĩa','はさみ||cái kéo','ファクス||máy fax','パソコン||máy tính cá nhân','消しゴム|けしゴム|cục tẩy','紙|かみ|giấy','花|はな|hoa','シャツ||áo sơ mi','プレゼント||quà tặng','荷物|にもつ|hành lý','お金|おかね|tiền','切符|きっぷ|vé','クリスマス||Giáng sinh',
-'父|ちち|bố (của mình)','母|はは|mẹ (của mình)','お父さん|おとうさん|bố (của người khác)','お母さん|おかあさん|mẹ (của người khác)',
-'もう||đã, rồi','まだ||vẫn chưa','これから||từ bây giờ','旅行|りょこう|du lịch',
-'ごめんください||xin phép (khi đến nhà ai)','いらっしゃい||chào mừng, mời vào','どうぞお上がりください|どうぞおあがりください|xin mời vào','失礼します|しつれいします|xin phép, xin lỗi vì làm phiền','いただきます||xin mời (nói trước khi ăn)','すてきですね||đẹp quá nhỉ'
-],
-g:[
-{t:'N(công cụ) で V: bằng cái gì',p:'Trợ từ <b>で</b> còn chỉ công cụ, phương tiện hoặc ngôn ngữ dùng để làm hành động. Trả lời cho câu hỏi "bằng cái gì".',ex:[['はしで ごはんを たべます。','Tôi ăn cơm bằng đũa.'],['にほんごで てがみを かきます。','Tôi viết thư bằng tiếng Nhật.'],['パソコンで レポートを かきます。','Tôi viết báo cáo bằng máy tính.']]},
-{t:'～は ～ごで なんですか: nói ... bằng tiếng khác',p:'Để hỏi một từ trong ngôn ngữ khác, nói <b>「từ」は ～ごで なんですか</b>. Từ được hỏi để nguyên, đặt trước は.',ex:[['ありがとうは えいごで なんですか。','Từ "ありがとう" nói bằng tiếng Anh là gì?'],['ありがとうは えいごで サンキューです。','"ありがとう" tiếng Anh là "thank you".']]},
-{t:'N1(người) に N2を あげます: tặng, cho',p:'<b>あげます</b> là tặng hoặc cho ai đó. Người nhận đi với <b>に</b>, vật được tặng đi với <b>を</b>. Cùng kiểu này có <b>おしえます</b> (dạy), <b>おくります</b> (gửi), <b>かします</b> (cho mượn).',ex:[['わたしは きむらさんに はなを あげます。','Tôi tặng hoa cho cô Kimura.'],['やまださんは ミラーさんに にほんごを おしえます。','Anh Yamada dạy tiếng Nhật cho anh Miller.'],['ははに てがみを おくります。','Tôi gửi thư cho mẹ.']]},
-{t:'N1(người) に N2を もらいます: nhận',p:'<b>もらいます</b> là nhận. Người cho đi với <b>に</b> (nghĩa "từ") hoặc <b>から</b>. Tương tự: <b>かります</b> (mượn), <b>ならいます</b> (học từ ai). Chú ý: với tổ chức như công ty, trường học, dùng <b>から</b>.',ex:[['わたしは ともだちに とけいを もらいました。','Tôi đã nhận được đồng hồ từ bạn.'],['ともだちに ほんを かりました。','Tôi đã mượn sách của bạn.'],['かいしゃから でんわを もらいました。','Tôi đã nhận được cuộc gọi từ công ty.']]},
-{t:'もう V ました / まだです',p:'Hỏi hành động đã làm chưa bằng <b>もう V ましたか</b>. Nếu rồi, đáp <b>はい、もう V ました</b>. Nếu chưa, đáp <b>いいえ、まだです</b>, không dùng "もう V ません".',ex:[['もう ひるごはんを たべましたか。','Bạn đã ăn trưa chưa?'],['はい、もう たべました。','Vâng, tôi đã ăn rồi.'],['いいえ、まだです。','Chưa, tôi vẫn chưa ăn.']]},
-{t:'Lời nói khi đến thăm nhà',p:'Đến thăm nhà ai, đứng trước cửa nói <b>ごめんください</b>. Chủ nhà đáp <b>いらっしゃい</b>, rồi mời <b>どうぞ おあがりください</b>. Khách đáp <b>しつれいします</b> và vào nhà. Trước khi ăn hoặc uống người Nhật nói <b>いただきます</b>.',ex:[['ごめんください。','Xin phép cho tôi vào ạ.'],['いらっしゃい。どうぞ おあがりください。','Chào mừng anh chị. Xin mời vào.'],['しつれいします。','Xin phép cho tôi vào.'],['いただきます。','Xin mời (nói trước khi ăn).']]}
-],
-q:[
-{j:'わたしは はし＿ ごはんを たべます。',h:'Tôi ăn cơm bằng đũa.',o:['で','を','に','へ'],a:0,e:'Công cụ dùng để làm hành động đi với で.'},
-{j:'にほんご＿ レポートを かきます。',h:'Tôi viết báo cáo bằng tiếng Nhật.',o:['で','を','に','が'],a:0,e:'Ngôn ngữ, công cụ dùng để làm hành động đi với で.'},
-{j:'ミラーさんは きむらさん＿ はなを あげました。',h:'Anh Miller đã tặng hoa cho cô Kimura.',o:['に','を','で','の'],a:0,e:'Người nhận của あげます đi với に.'},
-{j:'わたしは ともだち＿ プレゼントを もらいました。',h:'Tôi đã nhận được quà từ bạn.',o:['に','を','で','の'],a:0,e:'Với もらいます, người cho dùng に hoặc から. Ở đây に đúng.'},
-{j:'もう ひるごはんを たべましたか。',h:'Bạn chưa ăn trưa. Trả lời đúng:',o:['いいえ、まだです。','いいえ、もう たべません。','はい、まだです。','はい、いいえ。'],a:0,e:'Chưa làm thì đáp いいえ、まだです.'},
-{j:'ありがとうは えいごで ＿ ですか。',h:'Từ "ありがとう" nói bằng tiếng Anh là gì?',o:['なん','どこ','だれ','いつ'],a:0,e:'なん hỏi "cái gì".'},
-{j:'',h:'Trước khi ăn người Nhật nói:',o:['いただきます','ごめんください','しつれいします','いらっしゃい'],a:0,e:'いただきます là câu nói trước khi ăn hoặc uống.'}
+'いま|bây giờ|今','きょう|hôm nay|今日','あした|ngày mai|明日','きのう|hôm qua|昨日','まいにち|mỗi ngày|毎日','あさ|buổi sáng|朝','ひる|buổi trưa|昼','よる|buổi tối, ban đêm|夜','ごぜん|buổi sáng (AM)|午前','ごご|buổi chiều (PM)|午後','じ|giờ (đếm giờ)|時','ふん|phút (còn đọc ぷん)|分',
+'げつようび|thứ Hai|月曜日','かようび|thứ Ba|火曜日','すいようび|thứ Tư|水曜日','もくようび|thứ Năm|木曜日','きんようび|thứ Sáu|金曜日','どようび|thứ Bảy|土曜日','にちようび|chủ nhật|日曜日',
+'しゅうまつ|cuối tuần|週末','らいしゅう|tuần sau|来週','らいげつ|tháng sau|来月','ことし|năm nay|今年'
 ]},
-
-{n:8, t:'Tính từ và miêu tả',
+{n:8, t:'Cơ thể, sức khỏe',
 v:[
-'ハンサム||đẹp trai (tính từ な)','きれい||đẹp, sạch (tính từ な)','静か|しずか|yên tĩnh (tính từ な)','賑やか|にぎやか|náo nhiệt (tính từ な)','有名|ゆうめい|nổi tiếng (tính từ な)','親切|しんせつ|tốt bụng (tính từ な)','元気|げんき|khỏe (tính từ な)','暇|ひま|rảnh rỗi (tính từ な)','便利|べんり|tiện lợi (tính từ な)','すてき||tuyệt vời (tính từ な)',
-'大きい|おおきい|to, lớn','小さい|ちいさい|nhỏ','新しい|あたらしい|mới','古い|ふるい|cũ','いい||tốt','悪い|わるい|xấu, tệ','暑い|あつい|nóng (thời tiết)','寒い|さむい|lạnh (thời tiết)','冷たい|つめたい|lạnh (đồ vật)','難しい|むずかしい|khó','易しい|やさしい|dễ','高い|たかい|cao, đắt','安い|やすい|rẻ','低い|ひくい|thấp','面白い|おもしろい|thú vị','美味しい|おいしい|ngon','忙しい|いそがしい|bận','楽しい|たのしい|vui','白い|しろい|trắng','黒い|くろい|đen','赤い|あかい|đỏ','青い|あおい|xanh dương',
-'桜|さくら|hoa anh đào','山|やま|núi','町|まち|thị trấn, phố','食べ物|たべもの|đồ ăn','車|くるま|xe hơi','所|ところ|nơi, chỗ','寮|りょう|ký túc xá','生活|せいかつ|cuộc sống','仕事|しごと|công việc',
-'どう||thế nào','どんな～||～ như thế nào','どれ||cái nào','とても||rất','あまり||không ～ lắm','そして||và, hơn nữa','～が、～||～ nhưng ～','お元気ですか|おげんきですか|bạn có khỏe không?'
-],
-g:[
-{t:'Hai loại tính từ: đuôi い và đuôi な',p:'Tiếng Nhật có hai nhóm tính từ. Nhóm <b>tính từ い</b> luôn kết thúc bằng い (<b>たかい, おおきい, おいしい</b>). Nhóm <b>tính từ な</b> không có い cuối (<b>きれい, しずか, ゆうめい</b>). Chú ý: <b>きれい</b> và <b>ゆうめい</b> tuy có âm い nhưng là tính từ な. Từ điển viết tính từ な bỏ な, ví dụ きれい.',ex:[['たかい','cao, đắt (tính từ い)'],['きれい','đẹp, sạch (tính từ な)'],['しずか','yên tĩnh (tính từ な)']]},
-{t:'N は A です: miêu tả',p:'Đặt tính từ trước <b>です</b> để nói N có tính chất gì. Tính từ い giữ nguyên, tính từ な bỏ な rồi gắn です. Câu hỏi thêm か.',ex:[['さくらは きれいです。','Hoa anh đào đẹp.'],['この ほんは おもしろいです。','Quyển sách này thú vị.'],['ベトナムは あついですか。','Việt Nam nóng không?']]},
-{t:'Phủ định của tính từ',p:'Tính từ な: bỏ な, thêm <b>じゃ ありません</b> (như danh từ). Tính từ い: bỏ い, thêm <b>くないです</b> (cũng có thể nói <b>くありません</b>, lịch sự hơn một chút). Ngoại lệ: <b>いい</b> đổi thành <b>よくないです</b>.',ex:[['ここは しずかじゃ ありません。','Ở đây không yên tĩnh.'],['この くるまは たかくないです。','Chiếc xe này không đắt.'],['てんきは よくないです。','Thời tiết không tốt.']]},
-{t:'Tính từ bổ nghĩa danh từ',p:'Tính từ đứng trước danh từ. Tính từ い: <b>A い + N</b>. Tính từ な: <b>A な + N</b> (giữ lại <b>な</b>).',ex:[['あたらしい くるまです。','Đó là chiếc xe mới.'],['きれいな はなです。','Đó là bông hoa đẹp.'],['ふじさんは ゆうめいな やまです。','Núi Phú Sĩ là ngọn núi nổi tiếng.']]},
-{t:'どんな N / どう: hỏi tính chất',p:'<b>どんな N</b> hỏi N thuộc loại nào, có tính chất gì. <b>どうですか</b> hỏi cảm nhận, ấn tượng về một việc, một nơi. Trả lời bằng tính từ.',ex:[['ふじさんは どんな やまですか。','Núi Phú Sĩ là ngọn núi như thế nào?'],['たかい やまです。','Là ngọn núi cao.'],['にほんの せいかつは どうですか。','Cuộc sống ở Nhật thế nào?']]},
-{t:'とても / あまり / ～が / そして',p:'<b>とても</b> là "rất" đứng trước tính từ. <b>あまり</b> là "không ... lắm" và luôn đi với phủ định. <b>A1ですが、A2です</b>: <b>が</b> nghĩa "nhưng" nối hai vế đối lập. <b>そして</b> nối hai ý bổ sung cho nhau.',ex:[['とても おいしいです。','Rất ngon.'],['この りょうりは あまり たかくないです。','Món này không đắt lắm.'],['この みせは やすいですが、おいしくないです。','Quán này rẻ nhưng không ngon.'],['ここは しずかです。そして きれいです。','Ở đây yên tĩnh. Hơn nữa còn sạch đẹp.']]}
-],
-q:[
-{j:'さくらは ＿ はなです。',h:'Hoa anh đào là bông hoa đẹp.',o:['きれいな','きれいい','きれいの','きれいです'],a:0,e:'Tính từ な đứng trước danh từ phải giữ な.'},
-{j:'',h:'Dạng phủ định đúng của "おいしい" (ngon):',o:['おいしくないです','おいしいじゃ ないです','おいしくじゃ ありません','おいしいくないです'],a:0,e:'Tính từ い: bỏ い, thêm くないです.'},
-{j:'しずか＿ へやです。',h:'Đó là căn phòng yên tĩnh.',o:['な','い','の','に'],a:0,e:'しずか là tính từ な nên gắn な trước danh từ.'},
-{j:'ミラーさんは ＿ ひとですか。',h:'Anh Miller là người như thế nào?',o:['どんな','どう','なん','どこ'],a:0,e:'どんな N hỏi tính chất của N.'},
-{j:'にほんの せいかつは ＿ ですか。',h:'Cuộc sống ở Nhật thế nào?',o:['どう','どんな','なに','どれ'],a:0,e:'どう hỏi cảm nhận, đứng một mình trước です.'},
-{j:'この りょうりは おいしいですが、＿ です。',h:'Món này ngon nhưng đắt.',o:['たかい','たかく','たかくて','たかいの'],a:0,e:'Sau が là một câu đầy đủ nên dùng たかい + です.'},
-{j:'ハノイは あまり ＿。',h:'Hà Nội không nóng lắm.',o:['あつくないです','あついです','あつくて','あつい'],a:0,e:'あまり luôn đi với phủ định.'},
-{j:'',h:'Dạng phủ định của "いい" (tốt):',o:['よくないです','いくないです','いいくないです','いいじゃ ないです'],a:0,e:'いい là ngoại lệ, đổi thành よくないです.'}
+'からだ|cơ thể|体','あたま|đầu|頭','かお|mặt|顔','め|mắt|目','みみ|tai|耳','はな|mũi (hoa là 花)|鼻','くち|miệng|口','は|răng|歯','かみ|tóc|髪','くび|cổ|首','かた|vai|肩','むね|ngực|胸',
+'おなか|bụng','せなか|lưng|背中','て|tay, bàn tay|手','ゆび|ngón tay|指','あし|chân|足','ひざ|đầu gối|膝','こえ|giọng nói|声',
+'げんき|khỏe mạnh|元気','びょうき|bệnh|病気','いたい|đau|痛い','ねつ|sốt|熱'
 ]},
-
-{n:9, t:'Sở thích và lý do',
+{n:9, t:'Động vật',
 v:[
-'わかります||hiểu','あります||có (đồ vật)','好き|すき|thích (tính từ な)','嫌い|きらい|ghét (tính từ な)','上手|じょうず|giỏi (tính từ な)','下手|へた|kém (tính từ な)',
-'料理|りょうり|món ăn, nấu ăn','飲み物|のみもの|đồ uống','スポーツ||thể thao','野球|やきゅう|bóng chày','ダンス||khiêu vũ','音楽|おんがく|âm nhạc','歌|うた|bài hát','クラシック||nhạc cổ điển','ジャズ||nhạc jazz','コンサート||buổi hòa nhạc','カラオケ||karaoke','歌舞伎|かぶき|kịch kabuki','絵|え|tranh','字|じ|chữ','漢字|かんじ|chữ Hán','平仮名|ひらがな|chữ Hiragana','片仮名|かたかな|chữ Katakana',
-'細かいお金|こまかいおかね|tiền lẻ','チケット||vé','時間|じかん|thời gian','用事|ようじ|việc bận','約束|やくそく|cuộc hẹn, lời hứa',
-'ご主人|ごしゅじん|chồng (của người khác)','主人|しゅじん|chồng (của mình)','奥さん|おくさん|vợ (của người khác)','家内|かない|vợ (của mình)','子ども|こども|con, trẻ em',
-'よく||thường, rõ','だいたい||đại khái','たくさん||nhiều','少し|すこし|một chút','全然|ぜんぜん|hoàn toàn không','早く|はやく|sớm, nhanh',
-'～から||vì ～ nên','どうして||tại sao','残念です|ざんねんです|tiếc quá','もしもし||alô','いっしょにいかがですか||cùng đi với tôi nhé?'
-],
-g:[
-{t:'N が すき / きらい / じょうず / へた',p:'Với những từ chỉ sở thích hoặc khả năng, đối tượng đi với trợ từ <b>が</b>, không phải を. <b>すき</b> (thích), <b>きらい</b> (ghét), <b>じょうず</b> (giỏi), <b>へた</b> (kém) đều là tính từ な. Khi muốn nói rất thích, thêm <b>だいすき</b>.',ex:[['わたしは すしが すきです。','Tôi thích sushi.'],['ミラーさんは うたが じょうずです。','Anh Miller hát giỏi.'],['わたしは やさいが きらいです。','Tôi ghét rau.']]},
-{t:'N が わかります / あります',p:'<b>わかります</b> (hiểu) và <b>あります</b> (có) cũng đi với <b>が</b>. Người có hoặc hiểu thường là chủ đề (<b>は</b>), còn thứ được hiểu hoặc được có đi với <b>が</b>.',ex:[['わたしは にほんごが わかります。','Tôi hiểu tiếng Nhật.'],['きょうは じかんが ありません。','Hôm nay tôi không có thời gian.'],['こまかい おかねが ありますか。','Bạn có tiền lẻ không?']]},
-{t:'どんな N が すきですか',p:'Dùng <b>どんな N</b> để hỏi thể loại. Trả lời bằng tên cụ thể của thể loại đó.',ex:[['どんな スポーツが すきですか。','Bạn thích môn thể thao nào?'],['サッカーが すきです。','Tôi thích bóng đá.'],['どんな おんがくが すきですか。','Bạn thích loại nhạc nào?']]},
-{t:'Mức độ: よく, だいたい, たくさん, すこし, あまり, ぜんぜん',p:'<b>よく</b> (tốt, rõ), <b>だいたい</b> (đại khái), <b>たくさん</b> (nhiều), <b>すこし</b> (một chút) dùng với câu khẳng định. <b>あまり</b> (không ... lắm) và <b>ぜんぜん</b> (hoàn toàn không) chỉ dùng với phủ định. Các từ này đứng trước động từ hoặc tính từ.',ex:[['にほんごが よく わかります。','Tôi hiểu tiếng Nhật khá rõ.'],['にほんごが すこし わかります。','Tôi hiểu một chút tiếng Nhật.'],['にほんごが あまり わかりません。','Tôi không hiểu tiếng Nhật lắm.'],['にほんごが ぜんぜん わかりません。','Tôi hoàn toàn không hiểu tiếng Nhật.']]},
-{t:'～から: vì ～ nên',p:'Đặt <b>から</b> sau vế nêu lý do. Vế còn lại là kết quả. Thứ tự giống tiếng Việt "vì A nên B" nhưng viết A から、B (lý do trước, kết quả sau).',ex:[['じかんが ありませんから、いきません。','Vì không có thời gian nên tôi không đi.'],['あしたは やすみですから、うちに います。','Vì mai được nghỉ nên tôi ở nhà.']]},
-{t:'どうして: hỏi lý do, và mời hoặc từ chối',p:'<b>どうして</b> hỏi lý do, trả lời kết thúc bằng <b>～から</b>. Khi mời bằng <b>いっしょに いかがですか</b> mà không thể nhận lời, từ chối nhẹ nhàng bằng <b>ざんねんですが、ちょっと...</b> và nêu lý do.',ex:[['どうして きのう きませんでしたか。','Tại sao hôm qua bạn không đến?'],['ようじが ありましたから。','Vì tôi có việc bận.'],['ざんねんですが、きょうは ちょっと...','Tiếc quá, hôm nay thì hơi khó...']]}
-],
-q:[
-{j:'わたしは にほんご＿ わかります。',h:'Tôi hiểu tiếng Nhật.',o:['が','を','に','で'],a:0,e:'わかります đi với が.'},
-{j:'わたしは りょうり＿ すきです。',h:'Tôi thích nấu ăn.',o:['が','を','に','で'],a:0,e:'すき đi với が.'},
-{j:'ミラーさんは ピアノ＿ じょうずです。',h:'Anh Miller chơi piano giỏi.',o:['が','を','に','で'],a:0,e:'じょうず đi với が.'},
-{j:'わたしは あまり おさけを ＿。',h:'Tôi không uống rượu lắm.',o:['のみません','のみます','のみましょう','のみませんか'],a:0,e:'あまり luôn đi với phủ định.'},
-{j:'',h:'"ぜんぜん" có nghĩa là:',o:['hoàn toàn không (đi với phủ định)','rất (đi với khẳng định)','thường xuyên','hơi hơi'],a:0,e:'ぜんぜん đi với phủ định: ぜんぜん わかりません.'},
-{j:'',h:'Từ dùng để hỏi lý do là:',o:['どうして','どこ','いつ','だれ'],a:0,e:'どうして hỏi "tại sao".'},
-{j:'どうして おさけを のみませんか。',h:'Câu trả lời đúng: "Vì tôi không thích rượu."',o:['すきじゃ ありませんから。','すきじゃ ありませんどうして。','すきじゃ ありませんで。','すきじゃ ありませんと。'],a:0,e:'Trả lời lý do bằng ～から ở cuối.'},
-{j:'',h:'Từ chối lời mời khéo léo, ta nói:',o:['ざんねんですが、ちょっと...','わかりました。','ええ、いきましょう。','どうして ですか。'],a:0,e:'ざんねんですが、ちょっと... là cách từ chối mềm mỏng.'}
+'どうぶつ|động vật|動物','いぬ|chó|犬','ねこ|mèo|猫','とり|chim|鳥','うま|ngựa|馬','うし|bò|牛','ぶた|lợn|豚','ひつじ|cừu','さる|khỉ|猿','くま|gấu|熊','ぞう|voi|象','とら|hổ|虎',
+'うさぎ|thỏ','ねずみ|chuột','へび|rắn|蛇','かめ|rùa|亀','むし|côn trùng|虫','ちょうちょう|con bướm|蝶々',
+'ライオン|sư tử','パンダ|gấu trúc','キリン|hươu cao cổ','ペット|thú cưng'
 ]},
-
-{n:10, t:'Vị trí và sự tồn tại',
+{n:10, t:'Trong nhà',
 v:[
-'います||có, ở (người, động vật)','あります||có, ở (đồ vật)','いろいろ||nhiều loại, đa dạng','男の人|おとこのひと|người đàn ông','女の人|おんなのひと|người phụ nữ','男の子|おとこのこ|bé trai','女の子|おんなのこ|bé gái','犬|いぬ|con chó','猫|ねこ|con mèo','木|き|cây','物|もの|đồ vật','電池|でんち|pin','箱|はこ|cái hộp','冷蔵庫|れいぞうこ|tủ lạnh','テーブル||bàn ăn','ベッド||giường','棚|たな|giá, kệ','ドア||cửa ra vào','窓|まど|cửa sổ','ポスト||hòm thư','ビル||tòa nhà','公園|こうえん|công viên','喫茶店|きっさてん|quán cà phê','本屋|ほんや|hiệu sách','～屋|～や|cửa hàng ～','乗り場|のりば|bến xe, bến tàu','県|けん|tỉnh',
-'上|うえ|trên','下|した|dưới','前|まえ|trước','後ろ|うしろ|sau','右|みぎ|bên phải','左|ひだり|bên trái','中|なか|trong','外|そと|ngoài','隣|となり|bên cạnh','近く|ちかく|gần','間|あいだ|giữa',
-'～や～||～ và ～ (liệt kê không đầy đủ)','どうもすみません||xin lỗi nhiều','何もありません|なにもありません|chẳng có gì cả','だれも||không ai'
-],
-g:[
-{t:'あります và います',p:'Tiếng Nhật có hai động từ "có, ở". <b>います</b> dùng cho người và động vật (những gì tự di chuyển). <b>あります</b> dùng cho đồ vật, cây cối, tòa nhà, sự kiện (những gì không tự di chuyển).',ex:[['つくえの うえに ほんが あります。','Trên bàn có quyển sách.'],['にわに ねこが います。','Trong vườn có con mèo.'],['こうえんに おとこの こが います。','Trong công viên có bé trai.']]},
-{t:'N1(địa điểm) に N2が あります / います: ở N1 có N2',p:'Dùng để nói ở một nơi có cái gì hoặc ai. Địa điểm đi với <b>に</b>, vật hoặc người tồn tại đi với <b>が</b>. Hỏi: <b>なにが ありますか</b> (có cái gì) và <b>だれが いますか</b> (có ai).',ex:[['へやに つくえが あります。','Trong phòng có cái bàn.'],['なにが ありますか。','Có cái gì vậy?'],['だれが いますか。','Có ai ở đó vậy?']]},
-{t:'N2 は N1に あります / います: N2 ở N1',p:'Khi người nói đã biết N2 và muốn nói nó ở đâu, N2 trở thành chủ đề (<b>は</b>), địa điểm đi với <b>に</b>. Hỏi: <b>N2は どこに ありますか</b>.',ex:[['ミラーさんは じむしょに います。','Anh Miller ở văn phòng.'],['ポストは えきの まえに あります。','Hòm thư ở trước ga.'],['トイレは どこに ありますか。','Nhà vệ sinh ở đâu vậy?']]},
-{t:'Từ chỉ vị trí: うえ, した, まえ, うしろ...',p:'Các từ <b>うえ, した, まえ, うしろ, みぎ, ひだり, なか, そと, となり, ちかく, あいだ</b> đứng sau danh từ qua <b>の</b>: <b>N の うえ</b>. Với "ở giữa A và B" dùng <b>AとBの あいだ</b>.',ex:[['つくえの うえに ほんが あります。','Trên bàn có sách.'],['ぎんこうの となりに ゆうびんきょくが あります。','Bên cạnh ngân hàng có bưu điện.'],['ほんやと ぎんこうの あいだに ポストが あります。','Giữa hiệu sách và ngân hàng có hòm thư.']]},
-{t:'N1や N2: liệt kê chưa đầy đủ',p:'<b>と</b> liệt kê đầy đủ mọi thứ. <b>や</b> liệt kê một vài thứ làm ví dụ, ngụ ý còn thứ khác nữa. Trong tiếng Việt gần với "A, B, vân vân".',ex:[['はこの なかに てがみや しゃしんが あります。','Trong hộp có thư, ảnh, v.v.'],['つくえの うえに ほんや ノートが あります。','Trên bàn có sách, vở, v.v.']]},
-{t:'Phủ định: ありません, いません',p:'Phủ định là <b>ありません</b> và <b>いません</b>. Để nói "không có gì cả" dùng <b>なにも ありません</b>, "không có ai" dùng <b>だれも いません</b>.',ex:[['へやに テレビは ありません。','Trong phòng không có ti vi.'],['へやに なにも ありません。','Trong phòng chẳng có gì cả.'],['こうえんに だれも いません。','Trong công viên không có ai.']]}
-],
-q:[
-{j:'つくえの うえに ほんが ＿。',h:'Trên bàn có sách.',o:['あります','います','ありません','いません'],a:0,e:'Sách là đồ vật nên dùng あります.'},
-{j:'にわに ねこが ＿。',h:'Trong vườn có con mèo.',o:['います','あります','ありません','いません'],a:0,e:'Mèo là động vật nên dùng います.'},
-{j:'ミラーさんは じむしょ＿ います。',h:'Anh Miller ở văn phòng.',o:['に','を','で','へ'],a:0,e:'Nơi tồn tại đi với に.'},
-{j:'れいぞうこの ＿ に ビールが あります。',h:'Trong tủ lạnh có bia.',o:['なか','うえ','そと','となり'],a:0,e:'なか là bên trong.'},
-{j:'ポストは ぎんこうの となり＿ あります。',h:'Hòm thư ở bên cạnh ngân hàng.',o:['に','を','で','と'],a:0,e:'Vị trí tồn tại đi với に.'},
-{j:'こうえんに だれが いますか。',h:'Câu trả lời đúng:',o:['おとこの こが います。','おとこの こが あります。','おとこの こです あります。','おとこの こを います。'],a:0,e:'Người dùng います, vị trí tồn tại đi với が.'},
-{j:'つくえの うえに ほん＿ ノートが あります。',h:'Trên bàn có sách, vở, vân vân (liệt kê chưa đủ).',o:['や','と','の','に'],a:0,e:'や dùng để liệt kê chưa đầy đủ, ngụ ý còn nữa.'},
-{j:'',h:'Từ trái nghĩa với うえ (trên) là:',o:['した','まえ','となり','なか'],a:0,e:'うえ (trên) đối lập với した (dưới).'}
+'いえ|nhà|家','へや|căn phòng|部屋','げんかん|lối vào nhà|玄関','ドア|cửa ra vào','まど|cửa sổ|窓','かいだん|cầu thang|階段','だいどころ|nhà bếp|台所','おふろ|bồn tắm, phòng tắm|お風呂','トイレ|nhà vệ sinh','にわ|vườn, sân|庭',
+'つくえ|cái bàn học|机','いす|cái ghế|椅子','ベッド|giường','テーブル|cái bàn ăn','ソファ|ghế sofa','テレビ|ti vi','れいぞうこ|tủ lạnh|冷蔵庫','エアコン|máy điều hòa','でんき|điện, đèn điện|電気','カーテン|rèm cửa','かがみ|gương|鏡','でんわ|điện thoại|電話'
 ]},
-
-{n:11, t:'Đếm số lượng và khoảng thời gian',
+{n:11, t:'Đồ dùng cá nhân',
 v:[
-'います||có (con cái, người thân)','掛かります|かかります|mất (thời gian, tiền)',
-'一つ|ひとつ|một cái','二つ|ふたつ|hai cái','三つ|みっつ|ba cái','四つ|よっつ|bốn cái','五つ|いつつ|năm cái','六つ|むっつ|sáu cái','七つ|ななつ|bảy cái','八つ|やっつ|tám cái','九つ|ここのつ|chín cái','十|とお|mười cái',
-'一人|ひとり|một người','二人|ふたり|hai người','～人|～にん|～người (từ 3 người trở lên)','～台|～だい|～chiếc (máy móc, xe)','～枚|～まい|～tờ (vật mỏng)','～回|～かい|～lần',
-'りんご||quả táo','みかん||quả quýt','サンドイッチ||bánh mì kẹp','カレー||món cà ri','アイスクリーム||kem','切手|きって|tem','はがき||bưu thiếp','封筒|ふうとう|phong bì','速達|そくたつ|chuyển phát nhanh','書留|かきとめ|thư bảo đảm','航空便|こうくうびん|gửi đường hàng không','船便|ふなびん|gửi đường biển',
-'両親|りょうしん|bố mẹ','兄弟|きょうだい|anh chị em','兄|あに|anh trai (của mình)','姉|あね|chị gái (của mình)','弟|おとうと|em trai (của mình)','妹|いもうと|em gái (của mình)','外国|がいこく|nước ngoài',
-'～時間|～じかん|～tiếng (khoảng thời gian)','～週間|～しゅうかん|～tuần','～か月|～かげつ|～tháng','～年|～ねん|～năm','～ぐらい||khoảng ～','どのくらい||bao lâu, bao nhiêu','全部で|ぜんぶで|tổng cộng','みんな||mọi người','～だけ||chỉ ～',
-'いらっしゃいませ||kính chào quý khách','いい天気ですね|いいてんきですね|trời đẹp nhỉ','お出かけですか|おでかけですか|bạn ra ngoài à?','ちょっと～まで||tôi đi ～ một chút','行ってまいります|いってまいります|tôi đi đây','行っていらっしゃい|いっていらっしゃい|anh đi nhé'
-],
-g:[
-{t:'Đếm vật: ひとつ, ふたつ... とお',p:'Có một dãy số đếm riêng cho vật nói chung: <b>ひとつ, ふたつ, みっつ, よっつ, いつつ, むっつ, ななつ, やっつ, ここのつ, とお</b>. Từ 11 trở đi dùng số bình thường (<b>じゅういち</b>). Khi đếm, đặt số lượng ngay trước động từ, <b>không có trợ từ</b>.',ex:[['りんごを みっつ かいました。','Tôi đã mua ba quả táo.'],['みかんを いつつ ください。','Cho tôi năm quả quýt.'],['ジュースを ひとつ ください。','Cho tôi một chai nước ép.']]},
-{t:'Đếm người, máy móc, vật mỏng, số lần',p:'Người: <b>ひとり, ふたり</b>, từ ba trở đi <b>số + にん</b> (<b>さんにん, よにん</b>). Máy móc, xe: <b>số + だい</b>. Vật mỏng như giấy, tem, vé: <b>số + まい</b>. Số lần: <b>số + かい</b>. Hỏi số lượng bằng <b>いくつ</b> (vật), <b>なんにん</b>, <b>なんだい</b>, <b>なんまい</b>, <b>なんかい</b>.',ex:[['こどもが ふたり います。','Tôi có hai đứa con.'],['わたしの かぞくは よにんです。','Gia đình tôi có bốn người.'],['はがきを ごまい ください。','Cho tôi năm tấm bưu thiếp.'],['くるまが にだい あります。','Có hai chiếc xe hơi.']]},
-{t:'Khoảng thời gian: ～じかん, ～しゅうかん, ～かげつ, ～ねん',p:'Khoảng thời gian dùng <b>số + じかん</b> (giờ), <b>しゅうかん</b> (tuần), <b>かげつ</b> (tháng), <b>ねん</b> (năm). Biến âm cần nhớ: <b>いっしゅうかん, はっしゅうかん, いっかげつ, ろっかげつ, はっかげつ</b>. 7 giờ đồng hồ là <b>ななじかん</b>. Hỏi bằng <b>どのくらい</b>, kết hợp với <b>かかります</b> (mất).',ex:[['ここから えきまで どのくらい かかりますか。','Từ đây đến ga mất bao lâu?'],['あるいて 10ぷんぐらい かかります。','Đi bộ mất khoảng 10 phút.'],['にほんまで ひこうきで 5じかん かかります。','Đến Nhật bằng máy bay mất 5 tiếng.']]},
-{t:'～ぐらい: khoảng',p:'<b>ぐらい</b> đứng sau số lượng hoặc khoảng thời gian, nghĩa là "khoảng". Đừng nhầm với <b>ごろ</b> (bài 13) dùng cho mốc thời gian.',ex:[['かぞくは 5にんぐらいです。','Gia đình có khoảng 5 người.'],['1しゅうかんぐらい やすみます。','Tôi nghỉ khoảng một tuần.']]},
-{t:'～に ～かい: tần suất',p:'<b>Khoảng thời gian + に + số lần</b> diễn đạt tần suất: một tuần mấy lần, một tháng mấy lần.',ex:[['1しゅうかんに 2かい テニスを します。','Một tuần tôi chơi quần vợt hai lần.'],['1かげつに 1かい えいがを みます。','Một tháng tôi xem phim một lần.']]},
-{t:'～だけ: chỉ',p:'<b>だけ</b> đặt sau danh từ hoặc số lượng, nghĩa là "chỉ". Câu vẫn dùng động từ khẳng định.',ex:[['わたしは にほんごだけ はなします。','Tôi chỉ nói tiếng Nhật.'],['りんごを ひとつだけ かいました。','Tôi chỉ mua một quả táo.'],['みんなで ごにんです。ぜんぶで 800えんです。','Tất cả là 5 người. Tổng cộng 800 yên.']]}
-],
-q:[
-{j:'りんごを ＿ かいました。',h:'Tôi đã mua ba quả táo.',o:['みっつ','みっつを','みっつの','みつ'],a:0,e:'Số lượng đứng trực tiếp trước động từ, không có trợ từ.'},
-{j:'こどもが ＿ います。',h:'Tôi có hai đứa con.',o:['ふたり','ににん','ふたつ','にり'],a:0,e:'Hai người là ふたり, ngoại lệ không phải ににん.'},
-{j:'うちから えきまで あるいて 10ぷん＿ かかります。',h:'Từ nhà đến ga đi bộ mất khoảng 10 phút.',o:['ぐらい','から','まで','だけ'],a:0,e:'ぐらい nghĩa là khoảng.'},
-{j:'ここから えきまで ＿ かかりますか。',h:'Từ đây đến ga mất bao lâu?',o:['どのくらい','いくら','なんじ','どこ'],a:0,e:'どのくらい hỏi khoảng thời gian hoặc số lượng.'},
-{j:'1しゅうかん＿ 2かい テニスを します。',h:'Một tuần tôi chơi quần vợt hai lần.',o:['に','を','で','は'],a:0,e:'Khoảng thời gian + に + số lần diễn đạt tần suất.'},
-{j:'はがきを 5＿ ください。',h:'Cho tôi 5 tấm bưu thiếp.',o:['まい','だい','かい','にん'],a:0,e:'Vật mỏng như bưu thiếp, tem, giấy đếm bằng まい.'},
-{j:'わたしは にほんご＿ はなします。',h:'Tôi chỉ nói tiếng Nhật.',o:['だけ','から','まで','ぐらい'],a:0,e:'だけ nghĩa là chỉ.'}
+'かばん|cặp, túi xách','かさ|ô, dù|傘','かぎ|chìa khóa|鍵','さいふ|ví|財布','とけい|đồng hồ|時計','めがね|kính mắt|眼鏡','スマホ|điện thoại thông minh','パソコン|máy tính','カメラ|máy ảnh',
+'ほん|sách|本','ノート|quyển vở','えんぴつ|bút chì|鉛筆','ペン|bút','かみ|giấy|紙','じしょ|từ điển|辞書',
+'ふく|quần áo|服','くつ|giày|靴','ぼうし|mũ|帽子','シャツ|áo sơ mi','ズボン|quần dài','くすり|thuốc|薬','おかね|tiền|お金','しゃしん|bức ảnh|写真'
 ]},
-
-{n:12, t:'Quá khứ và so sánh',
+{n:12, t:'Địa điểm',
 v:[
-'簡単|かんたん|đơn giản (tính từ な)','近い|ちかい|gần','遠い|とおい|xa','速い|はやい|nhanh','遅い|おそい|chậm, muộn','多い|おおい|nhiều','少ない|すくない|ít','暖かい|あたたかい|ấm','涼しい|すずしい|mát','甘い|あまい|ngọt','辛い|からい|cay','重い|おもい|nặng','軽い|かるい|nhẹ',
-'季節|きせつ|mùa','春|はる|mùa xuân','夏|なつ|mùa hè','秋|あき|mùa thu','冬|ふゆ|mùa đông','天気|てんき|thời tiết','雨|あめ|mưa','雪|ゆき|tuyết','曇り|くもり|trời nhiều mây',
-'ホテル||khách sạn','空港|くうこう|sân bay','海|うみ|biển','世界|せかい|thế giới','パーティー||bữa tiệc','お祭り|おまつり|lễ hội','すき焼き|すきやき|món sukiyaki','刺身|さしみ|sashimi','お寿司|おすし|sushi','天ぷら|てんぷら|tempura','生け花|いけばな|nghệ thuật cắm hoa','紅葉|もみじ|lá đỏ mùa thu',
-'どちら||cái nào, bên nào (so sánh hai)','どちらも||cả hai','一番|いちばん|nhất','ずっと||hơn nhiều','初めて|はじめて|lần đầu tiên','でも||nhưng, tuy nhiên','ただいま||tôi về rồi','お帰りなさい|おかえりなさい|anh về rồi à','すごいですね||giỏi quá nhỉ','疲れました|つかれました|tôi mệt rồi'
-],
-g:[
-{t:'Quá khứ của danh từ và tính từ な',p:'Khẳng định quá khứ: <b>でした</b>. Phủ định quá khứ: <b>じゃ ありませんでした</b>. Cấu trúc này dùng cho cả danh từ và tính từ な.',ex:[['きのうは あめでした。','Hôm qua trời mưa.'],['きのうは ひまでした。','Hôm qua tôi rảnh.'],['きのうは ひまじゃ ありませんでした。','Hôm qua tôi không rảnh.']]},
-{t:'Quá khứ của tính từ い',p:'Khẳng định: bỏ <b>い</b>, thêm <b>かったです</b>. Phủ định: bỏ <b>い</b>, thêm <b>くなかったです</b>. <b>いい</b> đổi thành <b>よかったです</b> và <b>よくなかったです</b>.',ex:[['きのうの パーティーは たのしかったです。','Bữa tiệc hôm qua đã rất vui.'],['てんきは よくなかったです。','Thời tiết hôm đó không tốt.'],['この ほんは おもしろくなかったです。','Quyển sách này đã không thú vị.']]},
-{t:'A は B より adj です: so sánh hơn',p:'<b>A は B より ～です</b> nghĩa là A ～ hơn B. Trợ từ <b>より</b> đứng sau vật làm chuẩn để so sánh. Thêm <b>ずっと</b> khi muốn nói hơn nhiều.',ex:[['この くるまは あの くるまより たかいです。','Chiếc xe này đắt hơn chiếc kia.'],['とうきょうは おおさかより おおきいです。','Tokyo lớn hơn Osaka.'],['ふじさんは ここの やまより ずっと たかいです。','Núi Phú Sĩ cao hơn nhiều so với ngọn núi ở đây.']]},
-{t:'A と B と どちらが ～ですか: chọn trong hai',p:'Để hỏi chọn một trong hai, dùng <b>A と B と どちらが ～ですか</b>. Trả lời <b>A/B の ほうが ～です</b>. Nếu cả hai như nhau, đáp <b>どちらも ～です</b>.',ex:[['サッカーと やきゅうと どちらが おもしろいですか。','Bóng đá và bóng chày, môn nào thú vị hơn?'],['サッカーの ほうが おもしろいです。','Bóng đá thú vị hơn.'],['どちらも おもしろいです。','Cả hai đều thú vị.']]},
-{t:'N[の なか]で なに/どこ/だれ/いつ が いちばん ～ですか',p:'So sánh nhất trong ba thứ trở lên. <b>いちばん</b> nghĩa là nhất. Phạm vi so sánh đi với <b>で</b>. Tùy ngữ cảnh, dùng từ để hỏi <b>なに</b> (cái gì), <b>どこ</b> (nơi nào), <b>だれ</b> (ai), <b>いつ</b> (khi nào).',ex:[['にほんで どこが いちばん きれいですか。','Ở Nhật nơi nào đẹp nhất?'],['きょうとが いちばん きれいです。','Kyoto đẹp nhất.'],['いちねんで いつが いちばん さむいですか。','Trong một năm lúc nào lạnh nhất?'],['ふゆが いちばん さむいです。','Mùa đông lạnh nhất.']]},
-{t:'Mẫu hội thoại hay dùng',p:'Khi về nhà, nói <b>ただいま</b>, người trong nhà đáp <b>おかえりなさい</b>. <b>でも</b> mở đầu câu có ý trái ngược. <b>はじめて</b> nghĩa là lần đầu tiên.',ex:[['ただいま。','Tôi về rồi.'],['おかえりなさい。','Anh về rồi à.'],['きょうとは はじめてです。','Tôi đến Kyoto lần đầu.']]}
-],
-q:[
-{j:'きのうは あめ＿。',h:'Hôm qua trời mưa.',o:['でした','です','ました','じゃ ありません'],a:0,e:'Danh từ ở quá khứ khẳng định là でした.'},
-{j:'きのうの パーティーは たのしかった＿。',h:'Bữa tiệc hôm qua rất vui.',o:['です','でした','ます','だ'],a:0,e:'Tính từ い ở quá khứ: かった + です.'},
-{j:'こうえんは しずか＿ ありませんでした。',h:'Công viên không yên tĩnh.',o:['じゃ','く','に','の'],a:0,e:'Tính từ な ở quá khứ phủ định: じゃ ありませんでした.'},
-{j:'この くるまは あの くるま＿ たかいです。',h:'Xe này đắt hơn xe kia.',o:['より','から','まで','ほど'],a:0,e:'より là trợ từ so sánh, đứng sau vật làm chuẩn.'},
-{j:'サッカーと やきゅうと ＿ が おもしろいですか。',h:'Bóng đá và bóng chày, môn nào thú vị hơn?',o:['どちら','どこ','なに','だれ'],a:0,e:'So sánh hai thứ dùng どちら.'},
-{j:'にほんで ＿ が いちばん きれいですか。',h:'Ở Nhật nơi nào đẹp nhất?',o:['どこ','どちら','なに','いつ'],a:0,e:'Hỏi nơi chốn trong phạm vi lớn dùng どこ.'},
-{j:'',h:'Dạng quá khứ phủ định đúng của "おいしい" là:',o:['おいしくなかったです','おいしいじゃ ありませんでした','おいしくないでした','おいしかったじゃ ありません'],a:0,e:'Tính từ い: bỏ い, thêm くなかったです.'},
-{j:'',h:'"よかったです" là quá khứ của tính từ nào?',o:['いい','わるい','すき','よる'],a:0,e:'いい đổi thành よかったです ở quá khứ.'}
+'がっこう|trường học|学校','だいがく|đại học|大学','びょういん|bệnh viện|病院','えき|nhà ga|駅','くうこう|sân bay|空港','ぎんこう|ngân hàng|銀行','ゆうびんきょく|bưu điện|郵便局',
+'スーパー|siêu thị','コンビニ|cửa hàng tiện lợi','デパート|trung tâm bách hóa','ホテル|khách sạn','こうえん|công viên|公園','としょかん|thư viện|図書館','えいがかん|rạp chiếu phim|映画館',
+'みせ|cửa hàng, tiệm|店','かいしゃ|công ty|会社','まち|thị trấn, phố|町','くに|đất nước, quê hương|国','ベトナム|Việt Nam','にほん|Nhật Bản|日本','とうきょう|Tokyo|東京'
 ]},
-
-{n:13, t:'Mong muốn và mục đích',
+{n:13, t:'Đi lại, hỏi đường',
 v:[
-'遊びます|あそびます|chơi','泳ぎます|およぎます|bơi','迎えます|むかえます|đón','疲れます|つかれます|mệt','出します|だします|gửi, nộp','入ります|はいります|vào (quán cà phê)','出ます|でます|ra khỏi (quán cà phê)','結婚します|けっこんします|kết hôn','買い物します|かいものします|mua sắm','食事します|しょくじします|dùng bữa','散歩します|さんぽします|đi dạo (công viên)',
-'大変|たいへん|vất vả (tính từ な)','欲しい|ほしい|muốn có','寂しい|さびしい|cô đơn','広い|ひろい|rộng','狭い|せまい|hẹp',
-'市役所|しやくしょ|ủy ban thành phố','プール||hồ bơi','川|かわ|sông','経済|けいざい|kinh tế','美術|びじゅつ|mỹ thuật','釣り|つり|câu cá','スキー||trượt tuyết','登録|とうろく|đăng ký','週末|しゅうまつ|cuối tuần','買い物|かいもの|việc mua sắm',
-'～ごろ||khoảng (mốc thời gian)','何か|なにか|cái gì đó','どこか||đâu đó',
-'おなかがすきました||tôi đói bụng','おなかがいっぱいです||tôi no bụng','のどがかわきました||tôi khát nước','そうですね||ừ nhỉ','そうしましょう||làm như vậy nhé',
-'ご注文は|ごちゅうもんは|quý khách gọi món gì ạ?','定食|ていしょく|suất ăn','牛どん|ぎゅうどん|cơm thịt bò','少々お待ちください|しょうしょうおまちください|xin quý khách đợi một chút','別々に|べつべつに|tách riêng ra'
-],
-g:[
-{t:'N が ほしいです: muốn có N',p:'<b>ほしい</b> là tính từ い, nghĩa là muốn có một vật. Vật muốn có đi với <b>が</b>. Phủ định là <b>ほしくないです</b>. Chỉ dùng cho cảm xúc của chính người nói, hoặc hỏi người nghe.',ex:[['わたしは くるまが ほしいです。','Tôi muốn có chiếc xe hơi.'],['いま なにが いちばん ほしいですか。','Bây giờ bạn muốn có gì nhất?'],['わたしは ペットが ほしくないです。','Tôi không muốn có thú cưng.']]},
-{t:'V たいです: muốn làm',p:'Bỏ <b>ます</b> ở động từ rồi thêm <b>たいです</b>: <b>いきます → いきたいです</b>. Tân ngữ có thể dùng <b>を</b> hoặc <b>が</b>. Phủ định: <b>たくないです</b>. Giống ほしい, mẫu này nói về mong muốn của người nói.',ex:[['わたしは にほんへ いきたいです。','Tôi muốn đi Nhật.'],['おすしを たべたいです。','Tôi muốn ăn sushi.'],['きょうは なにも したくないです。','Hôm nay tôi không muốn làm gì cả.']]},
-{t:'N(địa điểm) へ N/V に いきます: đi để làm gì',p:'Mục đích của di chuyển đi với <b>に</b>. Có hai cách. Danh từ chỉ hành động: <b>かいもの, さんぽ, しょくじ + に</b>. Động từ: bỏ <b>ます</b> rồi thêm <b>に</b>: <b>みに いきます</b>. Động từ chuyển động là <b>いきます, きます, かえります</b>.',ex:[['デパートへ かいものに いきます。','Tôi đi đến cửa hàng bách hóa để mua sắm.'],['こうえんへ さんぽに いきます。','Tôi đi công viên để đi dạo.'],['にほんへ にほんごを べんきょうしに きました。','Tôi đến Nhật để học tiếng Nhật.']]},
-{t:'Gọi món ở quán ăn',p:'Nhân viên hỏi <b>ごちゅうもんは</b>. Khách gọi món bằng <b>món + を + số lượng + ください</b>. Nhân viên đáp <b>しょうしょう おまちください</b>. Khi muốn tính tiền riêng từng người nói <b>べつべつに おねがいします</b>.',ex:[['ごちゅうもんは。','Quý khách gọi món gì ạ?'],['ぎゅうどんを ふたつ ください。','Cho tôi hai bát cơm thịt bò.'],['しょうしょう おまちください。','Xin quý khách chờ một chút.']]},
-{t:'なにか / どこか: cái gì đó, đâu đó',p:'<b>なにか</b> (cái gì đó) và <b>どこか</b> (đâu đó) dùng khi đề xuất mà không nói rõ cụ thể. Khác với <b>なにも</b> và <b>どこへも</b> (phủ định hoàn toàn).',ex:[['のどが かわきましたから、なにか のみませんか。','Vì khát nước, mình uống gì đó nhé?'],['なつやすみに どこか いきたいです。','Kỳ nghỉ hè tôi muốn đi đâu đó.']]},
-{t:'～ごろ: khoảng (mốc thời gian)',p:'<b>ごろ</b> đứng sau mốc thời gian như giờ giấc, ngày tháng: "khoảng ...". <b>ぐらい</b> (bài 11) dành cho khoảng thời gian dài bao lâu. So sánh: <b>3じごろ</b> (khoảng 3 giờ), <b>3じかんぐらい</b> (khoảng 3 tiếng).',ex:[['まいにち 11じごろ ねます。','Mỗi ngày tôi ngủ khoảng 11 giờ.'],['あした 3じごろ あいましょう。','Ngày mai gặp nhau khoảng 3 giờ nhé.']]}
-],
-q:[
-{j:'わたしは くるま＿ ほしいです。',h:'Tôi muốn có xe hơi.',o:['が','を','に','で'],a:0,e:'Vật muốn có đi với が.'},
-{j:'わたしは にほんへ いき＿。',h:'Tôi muốn đi Nhật.',o:['たいです','たです','ますです','たがります'],a:0,e:'Bỏ ます rồi thêm たいです.'},
-{j:'おすしを たべ＿。',h:'Tôi không muốn ăn sushi.',o:['たくないです','たいじゃ ありません','なくたいです','たくありたいです'],a:0,e:'Phủ định của たいです là たくないです.'},
-{j:'デパートへ かいもの＿ いきます。',h:'Tôi đến cửa hàng bách hóa để mua sắm.',o:['に','を','で','が'],a:0,e:'Mục đích của di chuyển đi với に.'},
-{j:'のどが かわきましたから、＿ のみませんか。',h:'Khát nước rồi, mình uống gì đó nhé?',o:['なにか','なにも','なにを','なに'],a:0,e:'なにか là một thứ gì đó chưa xác định.'},
-{j:'まいにち 11じ＿ ねます。',h:'Mỗi ngày tôi ngủ khoảng 11 giờ.',o:['ごろ','ぐらい','まで','だけ'],a:0,e:'Mốc thời gian dùng ごろ, khoảng thời gian dùng ぐらい.'},
-{j:'',h:'Cách gọi món đúng: "Cho tôi hai suất ăn."',o:['ていしょくを ふたつ ください。','ていしょくを ふたつです。','ていしょくに ふたつ ください。','ていしょくが ふたり ください。'],a:0,e:'Món ăn + を + số lượng + ください.'},
-{j:'',h:'Dạng muốn làm của "のみます" (uống):',o:['のみたい','のむたい','のみまたい','のめたい'],a:0,e:'Bỏ ます rồi thêm たい.'}
+'でんしゃ|tàu điện|電車','ちかてつ|tàu điện ngầm|地下鉄','しんかんせん|tàu cao tốc Shinkansen|新幹線','バス|xe buýt','タクシー|taxi','くるま|ô tô|車','じてんしゃ|xe đạp|自転車','ひこうき|máy bay|飛行機','ふね|tàu thuyền|船',
+'きっぷ|vé tàu xe|切符','パスポート|hộ chiếu','にもつ|hành lý|荷物','りょこう|du lịch|旅行','ちず|bản đồ|地図','みち|con đường|道',
+'みぎ|bên phải|右','ひだり|bên trái|左','まっすぐ|thẳng','ここ|ở đây, chỗ này','そこ|ở đó','あそこ|ở kia','どこ|ở đâu','とおい|xa|遠い','ちかい|gần|近い'
 ]},
-
-{n:14, t:'Thể て và nhờ vả',
+{n:14, t:'Thời tiết, thiên nhiên',
 v:[
-'つけます||bật (điện, máy lạnh)','消します|けします|tắt','開けます|あけます|mở','閉めます|しめます|đóng','急ぎます|いそぎます|vội','待ちます|まちます|đợi','止めます|とめます|dừng, đỗ','曲がります|まがります|rẽ','持ちます|もちます|mang, cầm','取ります|とります|lấy','手伝います|てつだいます|giúp đỡ','呼びます|よびます|gọi','話します|はなします|nói chuyện','見せます|みせます|cho xem','教えます|おしえます|cho biết (địa chỉ...)','座ります|すわります|ngồi','立ちます|たちます|đứng','使います|つかいます|dùng','置きます|おきます|đặt','降ります|ふります|rơi (mưa, tuyết)','コピーします||photocopy',
-'エアコン||máy lạnh','パスポート||hộ chiếu','名前|なまえ|tên','住所|じゅうしょ|địa chỉ','地図|ちず|bản đồ','塩|しお|muối','砂糖|さとう|đường','問題|もんだい|bài tập, vấn đề','答え|こたえ|đáp án','読み方|よみかた|cách đọc','～方|～かた|cách ～',
-'信号|しんごう|đèn giao thông','角|かど|góc đường','橋|はし|cây cầu','交差点|こうさてん|ngã tư','お釣り|おつり|tiền thừa',
-'まっすぐ||thẳng','ゆっくり||chậm rãi','すぐ||ngay lập tức','また||lần nữa','後で|あとで|sau đó','もう少し|もうすこし|thêm một chút nữa','いいですよ||được thôi','さあ||nào, thôi nào','あれ？||ơ kìa'
-],
-g:[
-{t:'Ba nhóm động từ',p:'Muốn chia thể て phải biết động từ thuộc nhóm nào. <b>Nhóm I</b>: âm trước <b>ます</b> thuộc cột い (かきます, のみます, かいます, いきます, ききます, まちます, はなします). <b>Nhóm II</b>: âm trước <b>ます</b> thuộc cột え (たべます, ねます, あけます), cộng một số động từ cột い như みます, おきます, います. <b>Nhóm III</b>: <b>します, きます</b> và danh từ + します (べんきょうします).',ex:[['かきます','Nhóm I'],['たべます','Nhóm II'],['します','Nhóm III']]},
-{t:'Cách chia thể て',p:'<b>Nhóm I</b> theo âm cuối trước ます: <b>い, ち, り → って</b> (かいます → かって); <b>み, び, に → んで</b> (のみます → のんで); <b>き → いて</b> (かきます → かいて), riêng <b>いきます → いって</b>; <b>ぎ → いで</b> (いそぎます → いそいで); <b>し → して</b> (はなします → はなして). <b>Nhóm II</b>: bỏ ます, thêm て (たべて). <b>Nhóm III</b>: <b>して, きて</b>.',ex:[['かって','mua (かいます)'],['のんで','uống (のみます)'],['かいて','viết (かきます)'],['はなして','nói chuyện (はなします)'],['たべて','ăn (たべます)']]},
-{t:'V てください: xin hãy ...',p:'<b>Thể て + ください</b> là cách yêu cầu hoặc nhờ lịch sự. Dùng với người ngang hàng hoặc cấp dưới. Với người trên, nên thêm lời xin lỗi mở đầu.',ex:[['ここに なまえを かいて ください。','Xin hãy viết tên vào đây.'],['ちょっと まって ください。','Xin hãy đợi một chút.'],['しおを とって ください。','Xin hãy lấy giúp tôi muối.']]},
-{t:'V ています: đang làm',p:'<b>Thể て + います</b> diễn tả hành động đang diễn ra. Với hiện tượng thời tiết, danh từ đi với <b>が</b>.',ex:[['いま あめが ふっています。','Bây giờ trời đang mưa.'],['ミラーさんは でんわを かけています。','Anh Miller đang gọi điện thoại.'],['なにを していますか。','Bạn đang làm gì vậy?'],['ほんを よんでいます。','Tôi đang đọc sách.']]},
-{t:'V ましょうか: để tôi ... nhé',p:'<b>V ましょうか</b> là lời đề nghị giúp đỡ người khác. Người nhận đáp <b>おねがいします</b> (nhờ anh) hoặc <b>けっこうです</b> (không cần ạ).',ex:[['にもつを もちましょうか。','Để tôi mang hành lý giúp nhé?'],['ええ、おねがいします。','Vâng, nhờ anh.'],['いいえ、けっこうです。','Không cần đâu ạ.']]},
-{t:'Chỉ đường và nói với tài xế',p:'Khi chỉ đường hoặc nói với tài xế taxi dùng thể て + ください. Kết hợp <b>まっすぐ</b> (thẳng), <b>みぎ/ひだり へ まがって</b> (rẽ phải/trái), <b>しんごう/かど を</b>. Dừng xe: <b>ここで とめて ください</b>.',ex:[['まっすぐ いって ください。','Xin hãy đi thẳng.'],['あの かどを みぎへ まがって ください。','Xin hãy rẽ phải ở góc kia.'],['ここで とめて ください。','Xin hãy dừng xe ở đây.']]}
-],
-q:[
-{j:'',h:'Thể て của かきます (viết) là:',o:['かいて','かって','かきて','かんで'],a:0,e:'Nhóm I, き đổi thành いて.'},
-{j:'',h:'Thể て của のみます (uống) là:',o:['のんで','のみて','のって','のいて'],a:0,e:'Nhóm I, み đổi thành んで.'},
-{j:'',h:'Thể て của たべます (ăn) là:',o:['たべて','たべって','たべんで','たべいて'],a:0,e:'Nhóm II chỉ cần bỏ ます và thêm て.'},
-{j:'',h:'Thể て của かいます (mua) là:',o:['かって','かいて','かんで','かいって'],a:0,e:'Nhóm I, い đổi thành って.'},
-{j:'ちょっと ＿ ください。',h:'Xin hãy đợi một chút.',o:['まって','まちて','まいて','まんで'],a:0,e:'まちます thuộc nhóm I, ち đổi thành って.'},
-{j:'いま あめが ふっ＿。',h:'Bây giờ trời đang mưa.',o:['ています','ていました','ませんでした','ましょう'],a:0,e:'Thể て + います diễn tả hành động đang diễn ra.'},
-{j:'にもつを もち＿。',h:'Để tôi mang hành lý giúp nhé?',o:['ましょうか','てください','ています','たいです'],a:0,e:'V ましょうか là lời đề nghị giúp đỡ.'},
-{j:'',h:'Nhóm III (bất quy tắc) gồm những động từ nào?',o:['します, きます','たべます, みます','かきます, のみます','いきます, かいます'],a:0,e:'Nhóm III chỉ có します, きます và danh từ + します.'}
+'てんき|thời tiết|天気','はれ|trời nắng|晴れ','くもり|trời nhiều mây|曇り','あめ|mưa|雨','ゆき|tuyết|雪','かぜ|gió|風','そら|bầu trời|空','たいよう|mặt trời|太陽','つき|mặt trăng|月','ほし|ngôi sao|星',
+'やま|núi|山','かわ|sông|川','うみ|biển|海','き|cây|木','はな|hoa|花','さくら|hoa anh đào|桜',
+'はる|mùa xuân|春','なつ|mùa hè|夏','あき|mùa thu|秋','ふゆ|mùa đông|冬',
+'あつい|nóng (thời tiết)|暑い','さむい|lạnh (thời tiết)|寒い','すずしい|mát mẻ|涼しい','あたたかい|ấm áp|暖かい'
 ]},
-
-{n:15, t:'Xin phép, cấm đoán và trạng thái',
+{n:15, t:'Hành động hằng ngày',
 v:[
-'売ります|うります|bán','作ります|つくります|làm, chế tạo','知ります|しります|biết','住みます|すみます|sống, ở','研究します|けんきゅうします|nghiên cứu','持っています|もっています|có, mang theo','働いています|はたらいています|đang làm việc',
-'資料|しりょう|tài liệu','カタログ||ca-ta-lô','時刻表|じこくひょう|bảng giờ tàu xe','服|ふく|quần áo','製品|せいひん|sản phẩm','ソフト||phần mềm','専門|せんもん|chuyên môn','歯医者|はいしゃ|nha sĩ','床屋|とこや|hiệu cắt tóc','プレイガイド||quầy bán vé','独身|どくしん|độc thân','結婚|けっこん|kết hôn',
-'特に|とくに|đặc biệt','思い出します|おもいだします|nhớ ra','ご家族|ごかぞく|gia đình (của người khác)','自由に|じゆうに|tự do','いらっしゃいます||có mặt, ở (kính ngữ)',
-'たばこ||thuốc lá','写真|しゃしん|ảnh','辞書|じしょ|từ điển','会社|かいしゃ|công ty','大学|だいがく|đại học','病院|びょういん|bệnh viện',
-'いいですよ||được thôi','どうぞ||xin mời','すみません、ちょっと...||xin lỗi, hơi khó ạ...','いけません||không được'
-],
-g:[
-{t:'V てもいいです: được phép',p:'<b>Thể て + も いいです</b> nghĩa là "làm ... cũng được". Hỏi xin phép: <b>V ても いいですか</b>. Đồng ý: <b>ええ、いいですよ / どうぞ</b>. Từ chối khéo: <b>すみません、ちょっと...</b>. Từ chối thẳng: <b>いいえ、いけません</b>.',ex:[['ここで しゃしんを とっても いいですか。','Tôi chụp ảnh ở đây có được không?'],['ええ、いいですよ。','Vâng, được chứ.'],['この じしょを つかっても いいですか。','Tôi dùng cuốn từ điển này được không?']]},
-{t:'V てはいけません: cấm',p:'<b>Thể て + は いけません</b> là lệnh cấm, nghĩa là "không được ...". Dùng trong biển báo, quy định hoặc người có quyền nói với người dưới.',ex:[['ここで たばこを すっては いけません。','Không được hút thuốc ở đây.'],['へやで たべては いけません。','Không được ăn trong phòng.'],['ここに くるまを とめては いけません。','Không được đỗ xe ở đây.']]},
-{t:'V ています (trạng thái kéo dài)',p:'Ngoài nghĩa "đang làm", <b>V ています</b> còn mô tả trạng thái kết quả hoặc thói quen kéo dài: nơi sống, nghề nghiệp, hôn nhân, sở hữu. Phân biệt: <b>いま ほんを よんでいます</b> (đang đọc) và <b>とうきょうに すんでいます</b> (đang sống ở Tokyo, kéo dài).',ex:[['わたしは おおさかに すんでいます。','Tôi đang sống ở Osaka.'],['ミラーさんは けっこんしています。','Anh Miller đã kết hôn.'],['カメラを もっています。','Tôi có máy ảnh.']]},
-{t:'Nghề nghiệp và nơi làm việc',p:'Mẫu <b>N(nơi) で V ています</b> diễn tả công việc, nghề nghiệp hiện tại. Có thể dùng với <b>はたらいています</b> (làm việc) hay <b>けんきゅうしています</b> (nghiên cứu).',ex:[['わたしは IMCで はたらいています。','Tôi đang làm việc ở công ty IMC.'],['ワットさんは だいがくで けんきゅうしています。','Anh Watt đang nghiên cứu ở trường đại học.'],['あの みせは パンを うっています。','Cửa hàng kia bán bánh mì.']]},
-{t:'しっています và しりません',p:'<b>しっています</b> là "biết" (đã biết từ trước). Phủ định không phải しっていません mà là <b>しりません</b> (không biết). Hỏi xem người kia biết hay chưa: <b>ごぞんじですか</b> dùng với người trên.',ex:[['あの ひとを しっていますか。','Bạn có biết người kia không?'],['はい、しっています。','Vâng, tôi biết.'],['いいえ、しりません。','Không, tôi không biết.']]},
-{t:'Hỏi về gia đình và tình trạng',p:'Hỏi về gia đình người khác dùng <b>ごかぞくは</b>. Hỏi hôn nhân: <b>どくしんですか</b> hoặc <b>けっこんしていますか</b>. Đáp: <b>どくしんです</b> (độc thân), <b>けっこんしています</b> (đã kết hôn).',ex:[['ごかぞくは。','Gia đình bạn thế nào ạ?'],['ミラーさんは どくしんですか。','Anh Miller còn độc thân à?'],['いいえ、けっこんしています。','Không, anh ấy đã kết hôn.']]}
-],
-q:[
-{j:'ここで しゃしんを とっても ＿。',h:'Tôi chụp ảnh ở đây có được không?',o:['いいですか','いけません','ください','ましょう'],a:0,e:'V ても いいですか là câu xin phép.'},
-{j:'ここで たばこを すって＿ いけません。',h:'Không được hút thuốc ở đây.',o:['は','も','が','を'],a:0,e:'V ては いけません là lệnh cấm.'},
-{j:'わたしは おおさかに すん＿。',h:'Tôi đang sống ở Osaka.',o:['でいます','ています','でます','でいけません'],a:0,e:'すみます là nhóm I, thể て là すんで. Trạng thái dùng ています.'},
-{j:'ミラーさんは けっこん＿。',h:'Anh Miller đã kết hôn.',o:['しています','です','しましょう','してください'],a:0,e:'けっこんします chia thể て + います để diễn tả trạng thái.'},
-{j:'あの ひとを しっていますか。→ いいえ、＿。',h:'Không, tôi không biết người đó.',o:['しりません','しっていません','しりませんです','しっていますじゃありません'],a:0,e:'Phủ định của しっています là しりません.'},
-{j:'いま ほんを よん＿。',h:'Bây giờ tôi đang đọc sách.',o:['でいます','でください','でも いいです','でしょう'],a:0,e:'よみます → よんで. Thể て + います diễn tả đang làm.'},
-{j:'ワットさんは だいがく＿ けんきゅうしています。',h:'Anh Watt đang nghiên cứu ở trường đại học.',o:['で','を','に','が'],a:0,e:'Nơi diễn ra hành động dùng で.'},
-{j:'',h:'Cách từ chối khéo khi bị xin phép:',o:['すみません、ちょっと...','ええ、いいですよ。','はい、どうぞ。','わかりました。'],a:0,e:'すみません、ちょっと... là cách từ chối mềm mỏng.'}
+'たべる|ăn|食べる','のむ|uống|飲む','みる|xem, nhìn|見る','きく|nghe, hỏi|聞く','よむ|đọc|読む','かく|viết|書く','はなす|nói chuyện|話す','いく|đi|行く','くる|đến|来る','かえる|về|帰る','かう|mua|買う','あう|gặp|会う',
+'する|làm','ねる|ngủ|寝る','おきる|thức dậy|起きる','はたらく|làm việc|働く','べんきょう|học tập|勉強','あそぶ|chơi|遊ぶ','およぐ|bơi|泳ぐ','うたう|hát|歌う','あるく|đi bộ|歩く','わかる|hiểu|分かる'
+]},
+{n:16, t:'Tính từ thông dụng',
+v:[
+'おおきい|to, lớn|大きい','ちいさい|nhỏ|小さい','あたらしい|mới|新しい','ふるい|cũ|古い','たかい|cao, đắt|高い','ひくい|thấp|低い','やすい|rẻ|安い','ながい|dài|長い','みじかい|ngắn|短い',
+'はやい|nhanh, sớm|速い','おそい|chậm, muộn|遅い','おもい|nặng|重い','かるい|nhẹ|軽い',
+'おいしい|ngon|美味しい','たのしい|vui|楽しい','むずかしい|khó|難しい','やさしい|dễ, hiền','いい|tốt, được|良い','わるい|xấu, tệ|悪い','おもしろい|thú vị|面白い','かわいい|dễ thương|可愛い','いそがしい|bận|忙しい'
 ]}
 ];
-LESSONS.forEach(L => {
-  L.words = L.v.map(s => { const [w, r, m] = s.split('|'); return {w, r:r || w, m, key:`v${L.n}:${w}`}; });
-  /* đáp án đúng được viết ở vị trí đầu, xáo lại mỗi lần mở trang */
-  L.q.forEach(q => { const right = q.o[q.a]; q.o = shuffle(q.o.slice()); q.a = q.o.indexOf(right); });
+TOPICS.forEach(T => {
+  T.words = T.v.map(s => {
+    const [w, m, kj, ro] = s.split('|');
+    return {w, r:w, m, kj:kj || '', ro:ro || toRomaji(w), key:`v${T.n}:${w}`, sc:/^[ァ-ヶー]+$/.test(w) ? 'kata' : 'hira'};
+  });
 });
-const ALLVOCAB = LESSONS.flatMap(L => L.words);
+const ALLVOCAB = TOPICS.flatMap(T => T.words);
 const speakJa = t => speak(t.split('／')[0].replace(/[～？?]/g, ''));
 
 /* ---------- Speech ---------- */
@@ -866,7 +577,7 @@ function pickerHandle(p, act, v){
 }
 
 /* ---------- Header + tabs ---------- */
-const TABS = [['bang','Bảng chữ'],['the','Thẻ nhớ'],['kiemtra','Kiểm tra'],['tuvung','Từ vựng'],['nguphap','Ngữ pháp']];
+const TABS = [['bang','Bảng chữ'],['the','Thẻ nhớ'],['kiemtra','Kiểm tra'],['tuvung','Từ vựng theo chủ đề']];
 let curTab = 'bang';
 function renderMeters(){
   const m = sc => ALL.filter(i => i.sc === sc && mastered(i.k)).length;
@@ -885,7 +596,7 @@ function showTab(id, scrollTo){
   curTab = id; store.tab = id; save();
   renderTabs();
   TABS.forEach(([t]) => { $('#p-' + t).hidden = t !== id; });
-  ({bang:renderChart, the:renderFC, kiemtra:renderQZ, tuvung:renderVocab, nguphap:renderGrammar})[id]();
+  ({bang:renderChart, the:renderFC, kiemtra:renderQZ, tuvung:renderVocab})[id]();
   if (scrollTo) {
     requestAnimationFrame(() => { const el = document.getElementById(scrollTo); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); });
   } else {
@@ -1069,9 +780,10 @@ function renderQZ(){
 
 
 /* ---------- 4. Vocabulary ---------- */
-const vc = {lesson:1, mode:'list', hide:false, open:new Set(), front:'jp', deck:[], total:0, known:0, flipped:false,
+/* topic 0 = tất cả chủ đề; sc lọc theo bảng chữ của từ; ro bật/tắt romaji */
+const vc = {topic:1, sc:'all', ro:true, mode:'list', hide:false, open:new Set(), front:'jp', deck:[], total:0, known:0, flipped:false,
   dir:'jp2vi', len:10, phase:'setup', qs:[], i:0, score:0, picked:null, results:[], missed:[]};
-const vcWords = () => LESSONS[vc.lesson - 1].words;
+const vcWords = () => (vc.topic ? TOPICS[vc.topic - 1].words : ALLVOCAB).filter(w => vc.sc === 'all' || w.sc === vc.sc);
 const wSize = w => w.length <= 4 ? '' : w.length <= 8 ? ' mid' : ' sm';
 function vcReset(){ vc.deck = shuffle(vcWords().slice()); vc.total = vc.deck.length; vc.known = 0; vc.flipped = false; }
 function vcReload(){ vc.open.clear(); vc.phase = 'setup'; vcReset(); }
@@ -1088,6 +800,7 @@ function vqOpts(it){
 }
 function vqStart(){
   const pool = shuffle(vcWords().slice()).slice(0, vc.len);
+  if (!pool.length) return;
   Object.assign(vc, {qs:pool.map(it => ({item:it, opts:vqOpts(it)})), i:0, score:0, picked:null, results:[], missed:[], phase:'run'});
   renderVocab();
   if (vc.dir === 'jp2vi') speakJa(pool[0].r);
@@ -1112,9 +825,10 @@ function vqNext(){
   if (vc.phase === 'run' && vc.dir === 'jp2vi') speakJa(vc.qs[vc.i].item.r);
 }
 function vocabList(ws){
+  if (!ws.length) return '<div class="box"><div class="empty-state"><b>Không có từ nào</b>Chủ đề này không có từ viết bằng bảng chữ đang lọc.</div></div>';
   const h = ws.map((w, i) => {
     const show = !vc.hide || vc.open.has(w.key);
-    return `<button type="button" class="word" data-act="v-word" data-i="${i}" ${vc.hide ? `aria-expanded="${show}"` : ''}>${mastered(w.key) ? '<span class="stamp" title="Đã thuộc">済</span>' : ''}<span class="k">${w.w}</span><span class="wr">${show ? `${w.r !== w.w ? w.r + ' · ' : ''}${w.m}` : 'Bấm để xem'}</span></button>`;
+    return `<button type="button" class="word" data-act="v-word" data-i="${i}" ${vc.hide ? `aria-expanded="${show}"` : ''}>${mastered(w.key) ? '<span class="stamp" title="Đã thuộc">済</span>' : ''}<span class="k">${w.w}</span><span class="wr">${show ? [vc.ro ? w.ro : '', w.m, w.kj].filter(Boolean).join(' · ') : 'Bấm để xem'}</span></button>`;
   }).join('');
   return `<div class="box"><div class="bar"><p class="hint">Bấm vào từ để nghe phát âm.</p>
     <button type="button" class="linkbtn" data-act="v-hide">${vc.hide ? 'Hiện hết nghĩa' : 'Ẩn nghĩa để tự kiểm tra'}</button></div>
@@ -1125,7 +839,7 @@ function vocabCard(){
   if (!vc.deck.length) return `<div class="box"><div class="stage"><div class="empty-state" style="padding-bottom:8px"><b>Bạn đã nhớ hết ${vc.total} thẻ</b>Làm bài trắc nghiệm để kiểm tra lại bài này.</div>
     <div class="row-btns"><button type="button" class="btn primary" data-act="v-toquiz">Làm trắc nghiệm</button><button type="button" class="btn" data-act="v-restart">Học lại từ đầu</button></div></div></div>`;
   const w = vc.deck[0], sz = wSize(w.w);
-  const back = `<span class="small">${w.w}</span>${w.r !== w.w ? `<span class="rd">${w.r}</span>` : ''}<span class="mean">${w.m}</span>`;
+  const back = `<span class="small">${w.w}</span>${vc.ro ? `<span class="rd">${w.ro}</span>` : ''}<span class="mean">${w.m}</span>${w.kj ? `<span class="small">${w.kj}</span>` : ''}`;
   let face;
   if (vc.front === 'jp') face = vc.flipped ? back : `<span class="big${sz}">${w.w}</span><span class="tap">Bấm để lật thẻ</span>`;
   else face = vc.flipped ? back : `<span class="mean front">${w.m}</span><span class="tap">Nhớ từ tiếng Nhật rồi bấm để lật</span>`;
@@ -1141,13 +855,13 @@ function vocabCard(){
 }
 function vocabQuiz(){
   if (vc.phase === 'setup') {
-    return `<div class="box"><div class="settings"><div><h2>Cài đặt trắc nghiệm</h2><p class="hint">Chỉ hỏi các từ của bài đang chọn.</p></div>
+    return `<div class="box"><div class="settings"><div><h2>Cài đặt trắc nghiệm</h2><p class="hint">Chỉ hỏi các từ của chủ đề đang chọn.</p></div>
       <div><div class="setting-l">Kiểu câu hỏi</div><div class="seg" role="group" aria-label="Kiểu câu hỏi">
         <button type="button" data-act="vq-dir" data-v="jp2vi" aria-pressed="${vc.dir === 'jp2vi'}">Nhìn từ, chọn nghĩa</button>
         <button type="button" data-act="vq-dir" data-v="vi2jp" aria-pressed="${vc.dir === 'vi2jp'}">Đọc nghĩa, chọn từ</button></div></div>
       <div><div class="setting-l">Số câu</div><div class="seg" role="group" aria-label="Số câu">
         ${[10, 20, 30].map(n => `<button type="button" data-act="vq-len" data-v="${n}" aria-pressed="${vc.len === n}">${n} câu</button>`).join('')}</div></div>
-      <div><button type="button" class="btn primary" data-act="vq-start">Bắt đầu</button></div></div></div>`;
+      <div><button type="button" class="btn primary" data-act="vq-start" ${vcWords().length ? '' : 'disabled'}>Bắt đầu</button></div></div></div>`;
   }
   if (vc.phase === 'run') {
     const q = vc.qs[vc.i], it = q.item, ans = vc.picked !== null, j2v = vc.dir === 'jp2vi';
@@ -1163,7 +877,7 @@ function vocabQuiz(){
     let fb = '';
     if (ans) {
       const ok = q.opts[vc.picked] === it;
-      fb = `<p class="fb ${ok ? 'ok' : 'no'}">${ok ? 'Chính xác!' : 'Chưa đúng.'} <span class="kana">${it.w}</span>${it.r !== it.w ? ` (${it.r})` : ''} nghĩa là <b>${it.m}</b>.</p>
+      fb = `<p class="fb ${ok ? 'ok' : 'no'}">${ok ? 'Chính xác!' : 'Chưa đúng.'} <span class="kana">${it.w}</span>${vc.ro ? ` (${it.ro})` : ''} nghĩa là <b>${it.m}</b>.</p>
         <button type="button" class="btn primary" data-act="vq-next">${vc.i + 1 < vc.qs.length ? 'Câu tiếp' : 'Xem kết quả'}</button>`;
     }
     return `<div class="box"><div class="stage"><div class="q-head"><span>Câu ${vc.i + 1}/${vc.qs.length}</span><span>Đúng ${vc.score}</span></div><div class="dots">${dots}</div>
@@ -1178,53 +892,25 @@ function vocabQuiz(){
     <button type="button" class="btn${vc.missed.length ? '' : ' primary'}" data-act="vq-start">Làm bài mới</button><button type="button" class="btn" data-act="vq-setup">Đổi cài đặt</button></div></div></div>`;
 }
 function renderVocab(){
-  const L = LESSONS[vc.lesson - 1], ws = L.words;
-  const chips = LESSONS.map(l => `<button type="button" class="chip txt" data-act="v-lesson" data-v="${l.n}" aria-pressed="${l.n === vc.lesson}">Bài ${l.n}</button>`).join('');
+  const T = vc.topic ? TOPICS[vc.topic - 1] : null, ws = vcWords();
+  const chips = [{n:0, t:'Tất cả'}, ...TOPICS].map(t => `<button type="button" class="chip txt" data-act="v-topic" data-v="${t.n}" aria-pressed="${t.n === vc.topic}">${t.t}</button>`).join('');
+  const scs = [['all','Mọi từ'],['hira','Từ Hiragana'],['kata','Từ Katakana']]
+    .map(([v, l]) => `<button type="button" data-act="v-sc" data-v="${v}" aria-pressed="${vc.sc === v}">${l}</button>`).join('');
   const got = ws.filter(w => mastered(w.key)).length;
   const modes = [['list','Danh sách'],['card','Thẻ nhớ'],['quiz','Trắc nghiệm']]
     .map(([v, l]) => `<button type="button" data-act="v-mode" data-v="${v}" aria-pressed="${vc.mode === v}">${l}</button>`).join('');
   const body = vc.mode === 'list' ? vocabList(ws) : vc.mode === 'card' ? vocabCard() : vocabQuiz();
-  $('#p-tuvung').innerHTML = `<div class="box"><div class="bar"><div><h2>Bài ${L.n}: ${L.t}</h2><p class="hint">${ws.length} từ · đã thuộc ${got}/${ws.length}</p></div>
-    <div class="seg" role="group" aria-label="Cách học">${modes}</div></div><div class="chips" style="margin-top:12px">${chips}</div></div><div style="height:10px"></div>${body}`;
-}
-
-/* ---------- 5. Grammar ---------- */
-const gr = {lesson:1, ans:{}};
-const grScore = n => LESSONS[n - 1].q.filter((q, i) => gr.ans[`${n}:${i}`] === q.a).length;
-function grSaveBest(){
-  const n = gr.lesson, L = LESSONS[n - 1];
-  if (!L.q.every((_, i) => gr.ans[`${n}:${i}`] !== undefined)) return;
-  const s = grScore(n);
-  if (store.gbest[n] === undefined || s > store.gbest[n]) { store.gbest[n] = s; save(); }
-}
-function renderGrammar(){
-  const L = LESSONS[gr.lesson - 1], n = L.n;
-  const chips = LESSONS.map(l => `<button type="button" class="chip txt" data-act="g-lesson" data-v="${l.n}" aria-pressed="${l.n === n}">Bài ${l.n}${store.gbest[l.n] !== undefined ? ` · ${store.gbest[l.n]}/${l.q.length}` : ''}</button>`).join('');
-  const points = L.g.map((p, i) => `<div class="note"><h3>${i + 1}. ${p.t}</h3><p>${p.p}</p><div class="gex">${p.ex.map(([jp, vi]) =>
-    `<button type="button" class="ex-b" data-act="say" data-k="${jp}"><span class="k">${jp}</span><span class="r">${vi}</span></button>`).join('')}</div></div>`).join('');
-  const done = L.q.filter((_, i) => gr.ans[`${n}:${i}`] !== undefined).length;
-  const qs = L.q.map((q, i) => {
-    const key = `${n}:${i}`, a = gr.ans[key], ok = a === q.a;
-    const opts = q.o.map((o, j) => {
-      let cls = 'opt gopt';
-      if (a !== undefined) cls += j === q.a ? ' right' : (j === a ? ' wrong' : ' dim');
-      return `<button type="button" class="${cls}" data-act="g-ans" data-q="${key}" data-i="${j}" ${a !== undefined ? 'disabled' : ''}>${o}</button>`;
-    }).join('');
-    return `<div class="note gq"><p class="hint">Câu ${i + 1}</p>${q.j ? `<p class="gtxt">${q.j}</p>` : ''}<p class="gh">${q.h}</p><div class="gopts">${opts}</div>
-      ${a !== undefined ? `<p class="fb ${ok ? 'ok' : 'no'}">${ok ? 'Chính xác!' : 'Chưa đúng.'} ${q.e}</p>` : ''}</div>`;
-  }).join('');
-  const sum = done === L.q.length
-    ? `<div class="gsum"><b>Kết quả: ${grScore(n)}/${L.q.length}</b><button type="button" class="btn sm" data-act="g-redo">Làm lại</button></div>` : '';
-  $('#p-nguphap').innerHTML = `<div class="box"><h2>Bài ${n}: ${L.t}</h2><p class="hint">${L.g.length} điểm ngữ pháp và ${L.q.length} câu bài tập. Bấm vào câu ví dụ để nghe.</p><div class="chips" style="margin-top:12px">${chips}</div><div class="voice-slot">${voiceNote()}</div></div>
-    <div class="sec"><div class="sec-h"><h2>Ngữ pháp</h2></div><div class="notes gnotes">${points}</div></div>
-    <div class="sec"><div class="sec-h"><h2>Bài tập</h2><span>Đã làm ${done}/${L.q.length}</span></div><div class="notes gnotes">${qs}</div>${sum}</div>`;
+  $('#p-tuvung').innerHTML = `<div class="box"><div class="bar"><div><h2>${T ? T.t : 'Tất cả chủ đề'}</h2><p class="hint">${ws.length} từ · đã thuộc ${got}/${ws.length}</p></div>
+    <div class="seg" role="group" aria-label="Cách học">${modes}</div></div><div class="chips" style="margin-top:12px">${chips}</div>
+    <div class="bar vfilter"><div class="seg" role="group" aria-label="Lọc theo bảng chữ">${scs}</div>
+    <button type="button" class="linkbtn" data-act="v-ro">${vc.ro ? 'Ẩn romaji' : 'Hiện romaji'}</button></div></div><div style="height:10px"></div>${body}`;
 }
 
 /* ---------- Reset ---------- */
 let resetAsk = false;
 function renderReset(){
   $('#reset').innerHTML = resetAsk
-    ? '<span>Xoá toàn bộ tiến độ (chữ, từ vựng đã thuộc và điểm bài tập)?</span><button type="button" class="btn sm again" data-act="reset-yes">Xoá tiến độ</button><button type="button" class="btn sm" data-act="reset-no">Giữ lại</button>'
+    ? '<span>Xoá toàn bộ tiến độ (chữ và từ vựng đã thuộc)?</span><button type="button" class="btn sm again" data-act="reset-yes">Xoá tiến độ</button><button type="button" class="btn sm" data-act="reset-no">Giữ lại</button>'
     : '<span>Tiến độ được lưu trên trình duyệt này.</span><button type="button" class="linkbtn" data-act="reset-ask">Xoá tiến độ</button>';
 }
 
@@ -1270,7 +956,9 @@ document.addEventListener('click', e => {
     case 'q-say': speak(qz.qs[qz.i].item.k); break;
     case 'q-setup': qz.phase = 'setup'; renderQZ(); break;
     case 'q-review': fc.p = makePicker(qz.p.script, []); fc.p.custom = qz.missed.slice(); fcReset(); showTab('the'); break;
-    case 'v-lesson': vc.lesson = +v; vcReload(); renderVocab(); break;
+    case 'v-topic': vc.topic = +v; vcReload(); renderVocab(); break;
+    case 'v-sc': vc.sc = v; vcReload(); renderVocab(); break;
+    case 'v-ro': vc.ro = !vc.ro; renderVocab(); break;
     case 'v-mode': vc.mode = v; if (v === 'card') vcReset(); if (v === 'quiz') vc.phase = 'setup'; renderVocab(); break;
     case 'v-hide': vc.hide = !vc.hide; vc.open.clear(); renderVocab(); break;
     case 'v-word': {
@@ -1292,16 +980,9 @@ document.addEventListener('click', e => {
     case 'vq-say': speakJa(vc.qs[vc.i].item.r); break;
     case 'vq-review': vc.deck = vc.missed.slice(); vc.total = vc.deck.length; vc.known = 0; vc.flipped = false; vc.mode = 'card'; renderVocab(); break;
     case 'vq-setup': vc.phase = 'setup'; renderVocab(); break;
-    case 'g-lesson': gr.lesson = +v; renderGrammar(); break;
-    case 'g-ans': {
-      const key = el.dataset.q;
-      if (gr.ans[key] === undefined) { gr.ans[key] = +el.dataset.i; grSaveBest(); renderGrammar(); }
-      break;
-    }
-    case 'g-redo': Object.keys(gr.ans).forEach(k => { if (k.startsWith(gr.lesson + ':')) delete gr.ans[k]; }); renderGrammar(); break;
     case 'reset-ask': resetAsk = true; renderReset(); break;
     case 'reset-no': resetAsk = false; renderReset(); break;
-    case 'reset-yes': store.stats = {}; store.gbest = {}; save(); resetAsk = false; renderReset(); renderMeters(); gr.ans = {}; fcReset(); vcReload(); showTab(curTab); break;
+    case 'reset-yes': store.stats = {}; save(); resetAsk = false; renderReset(); renderMeters(); fcReset(); vcReload(); showTab(curTab); break;
   }
 });
 document.addEventListener('keydown', e => {
