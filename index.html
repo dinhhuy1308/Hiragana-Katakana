@@ -207,8 +207,44 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
 .vfilter{margin-top:12px;flex-wrap:wrap;gap:10px}
 .reset{margin-top:26px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
 
+
+/* Từ vựng N5: thẻ từ + câu ví dụ, nhãn kanji, furigana */
+.vw{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.vcard{border:1px solid var(--line);background:var(--surface);border-radius:10px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.vcard:hover{border-color:var(--accent)}
+.vmain{position:relative;border:0;background:transparent;padding:12px 10px;cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;min-width:0;width:100%;flex:1 1 auto}
+.vmain .k{font-family:var(--f-kana);font-size:1.4rem;line-height:1.5;word-break:break-all}
+.vmain .k rt,.flash ruby rt{font-size:.5em;color:var(--muted);font-family:var(--f-kana)}
+.vmain .wr{font-size:.8rem;color:var(--muted)}
+.vmain[aria-expanded="true"]{background:var(--accent-soft)}
+.vmain[aria-expanded="true"] .wr{color:var(--ink)}
+.vmain .stamp{position:absolute;top:8px;right:8px}
+.vmasu,.vmasu2{font-family:var(--f-kana);font-size:.9rem;color:var(--accent)}
+.vex{border:0;border-top:1px dashed var(--line);background:var(--bg);padding:8px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:1px;width:100%}
+.vex .exj{font-family:var(--f-kana);font-size:.92rem;line-height:1.5}
+.vex .exm{font-size:.78rem;color:var(--muted)}
+.vex:hover,.vex.ping{background:var(--accent-soft)}
+.lv{font-size:.68rem;font-weight:700;border-radius:999px;padding:0 7px;border:1px solid var(--line);color:var(--muted);line-height:1.6}
+.lv.n5{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+.vflash{height:auto;min-height:270px;padding:18px 14px;text-align:center;background:var(--surface)}
+.flash ruby rt{font-size:.3em;color:var(--accent)}
+.vflash .vmasu2{font-size:1.1rem}
+.vflash .rd{font-family:var(--f-body);font-size:1.05rem;color:var(--muted)}
+.vflash .small.kj{font-size:1.7rem}
+.vflash .exj{font-family:var(--f-kana);font-size:1rem;line-height:1.5;margin-top:8px}
+.vflash .exm{font-size:.82rem;color:var(--muted)}
+.vlinks{display:inline-flex;gap:14px}
+
+/* Chủ đề: một hàng cuộn ngang trên điện thoại để không chiếm hết màn hình */
+.tchips{position:relative}
+@media (max-width:760px){
+  .tchips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+  .tchips::-webkit-scrollbar{display:none}
+  .tchips .chip{flex:0 0 auto}
+}
+
 @media (prefers-reduced-motion:no-preference){
-  .cell,.ex-b,.chip,.opt,.btn,.word{transition:background-color .15s,border-color .15s}
+  .cell,.ex-b,.chip,.opt,.btn,.word,.vcard,.vmain,.vex,.dcheck{transition:background-color .15s,border-color .15s}
   .progress i{transition:width .3s}
 }
 </style>
@@ -221,7 +257,7 @@ select{font:inherit;font-size:.92rem;width:100%;padding:9px 10px;border:1px soli
       <div class="seal" aria-hidden="true">かな</div>
       <div>
         <h1>Luyện Tiếng Nhật Sơ Cấp</h1>
-        <p class="sub">Bảng chữ kana và từ vựng theo chủ đề thông dụng</p>
+        <p class="sub">Bảng chữ kana và từ vựng N5 theo chủ đề</p>
       </div>
     </div>
     <div class="meters" id="meters"></div>
@@ -369,113 +405,820 @@ function toRomaji(src){
   }
   return out.replace(/aa|uu|ee|oo|ou/g, m => ({aa:'ā', uu:'ū', ee:'ē', oo:'ō', ou:'ō'})[m]);
 }
+/* ---------- Từ vựng N5 theo chủ đề ----------
+   Mỗi từ: w = dạng kana (động từ: thể từ điển), ma = thể ます, m = nghĩa, kj = kanji (để trống nếu thường viết bằng kana),
+   ex/exm = câu ví dụ và nghĩa, ro = romaji (chỉ ghi khi khác cách tự chuyển đổi).
+   N5K là danh sách kanji sơ cấp thường gặp (xấp xỉ, vì JLPT không công bố danh sách chính thức); có thể sửa tại đây. */
+const N5K = "日一国人年大十二本中長出三時行見月後前生五間上東四今金九入学高円子外八六下来気小七山話女北午百書先名川千水半男西電校語土木聞食車何南万毎白天母火右読友左休父雨会買飲安新古多少曜週私手目口耳足犬猫魚鳥花肉牛";
+const isHan = c => /[\u4e00-\u9fff]/.test(c);
 const TOPICS = [
-{n:1, t:'Chào hỏi',
-v:[
-'おはよう|chào buổi sáng','こんにちは|xin chào (ban ngày)||konnichiwa','こんばんは|chào buổi tối||konbanwa','おやすみ|chúc ngủ ngon|お休み','さようなら|tạm biệt','ありがとう|cảm ơn',
-'すみません|xin lỗi, xin phép, làm phiền','ごめんなさい|xin lỗi (thân mật hơn)','はい|vâng, dạ','いいえ|không','おねがいします|làm ơn, nhờ bạn|お願いします',
-'いただきます|xin phép ăn (nói trước bữa ăn)','ごちそうさま|cảm ơn bữa ăn (nói sau bữa ăn)','ただいま|tôi về rồi đây','おかえり|chào mừng bạn về|お帰り','いってきます|tôi đi đây|行ってきます','いってらっしゃい|bạn đi nhé|行ってらっしゃい',
-'はじめまして|rất vui được gặp (lần đầu)|初めまして','よろしく|mong được giúp đỡ','おげんきですか|bạn có khỏe không?|お元気ですか|ogenki desu ka','だいじょうぶ|không sao, ổn|大丈夫'
+{n:1, t:"Chào hỏi", v:[
+{"w":"おはよう","m":"chào buổi sáng (thân mật)","ex":"おはよう。 きょうも がんばろう。","exm":"Chào buổi sáng. Hôm nay cũng cố lên nhé."},
+{"w":"おはようございます","m":"chào buổi sáng (lịch sự)","ex":"せんせい、 おはようございます。","exm":"Em chào thầy/cô buổi sáng ạ."},
+{"w":"こんにちは","m":"xin chào (ban ngày)","ex":"みなさん、 こんにちは。","exm":"Xin chào mọi người.","ro":"konnichiwa"},
+{"w":"こんばんは","m":"chào buổi tối","ex":"こんばんは。 さむいですね。","exm":"Chào buổi tối. Trời lạnh nhỉ.","ro":"konbanwa"},
+{"w":"おやすみ","m":"chúc ngủ ngon (thân mật)","ex":"おやすみ。 また あした。","exm":"Ngủ ngon nhé. Mai gặp lại."},
+{"w":"おやすみなさい","m":"chúc ngủ ngon (lịch sự)","ex":"おかあさん、 おやすみなさい。","exm":"Mẹ ơi, con chúc mẹ ngủ ngon."},
+{"w":"さようなら","m":"tạm biệt","ex":"せんせい、 さようなら。","exm":"Em chào thầy/cô ạ (khi ra về)."},
+{"w":"じゃあ、また","m":"hẹn gặp lại (thân mật)","ex":"じゃあ、 また あした。","exm":"Vậy hẹn mai gặp nhé.","ro":"jā, mata"},
+{"w":"ありがとう","m":"cảm ơn (thân mật)","ex":"てつだって くれて、 ありがとう。","exm":"Cảm ơn vì đã giúp mình."},
+{"w":"ありがとうございます","m":"cảm ơn (lịch sự)","ex":"プレゼント、 ありがとうございます。","exm":"Cảm ơn anh/chị về món quà."},
+{"w":"どういたしまして","m":"không có gì","ex":"「ありがとう。」「どういたしまして。」","exm":"\"Cảm ơn.\" \"Không có gì.\""},
+{"w":"すみません","m":"xin lỗi, xin phép, làm phiền","ex":"すみません、 えきは どこですか。","exm":"Xin lỗi, nhà ga ở đâu ạ?"},
+{"w":"ごめんなさい","m":"xin lỗi (thân mật hơn)","ex":"おそく なって、 ごめんなさい。","exm":"Xin lỗi vì mình đến muộn."},
+{"w":"しつれいします","m":"xin phép (khi vào phòng, khi ra về)","kj":"失礼します","ex":"しつれいします。 はいっても いいですか。","exm":"Xin phép ạ. Tôi vào được không?"},
+{"w":"はい","m":"vâng, dạ","ex":"はい、 わかりました。","exm":"Vâng, tôi hiểu rồi."},
+{"w":"いいえ","m":"không","ex":"いいえ、 ちがいます。","exm":"Không, không phải ạ."},
+{"w":"おねがいします","m":"làm ơn, nhờ bạn","kj":"お願いします","ex":"コーヒーを おねがいします。","exm":"Cho tôi cà phê."},
+{"w":"いただきます","m":"xin phép ăn (nói trước bữa ăn)","ex":"いただきます。 おいしそう！","exm":"Mời cả nhà ăn cơm. Trông ngon quá!"},
+{"w":"ごちそうさま","m":"cảm ơn bữa ăn (nói sau bữa ăn)","ex":"ごちそうさまでした。 おいしかったです。","exm":"Cảm ơn bữa ăn. Ngon lắm ạ."},
+{"w":"ただいま","m":"tôi về rồi đây","ex":"ただいま。 おなかが すいた。","exm":"Con về rồi. Đói bụng quá."},
+{"w":"おかえり","m":"chào mừng bạn về","ex":"おかえり。 がっこうは どうだった？","exm":"Con về rồi à. Ở trường thế nào?"},
+{"w":"いってきます","m":"tôi đi đây","kj":"行ってきます","ex":"いってきます。 ろくじに かえります。","exm":"Con đi đây. 6 giờ con về."},
+{"w":"いってらっしゃい","m":"bạn đi nhé","kj":"行ってらっしゃい","ex":"いってらっしゃい。 きを つけてね。","exm":"Đi nhé. Cẩn thận nha."},
+{"w":"はじめまして","m":"rất vui được gặp (lần đầu)","ex":"はじめまして。 わたしは アンです。","exm":"Rất vui được gặp. Tôi là An."},
+{"w":"よろしく","m":"mong được giúp đỡ","ex":"これから よろしく ね。","exm":"Từ giờ mong được giúp đỡ nhé."},
+{"w":"どうぞよろしくおねがいします","m":"rất mong được giúp đỡ (lịch sự)","kj":"どうぞよろしくお願いします","ex":"ベトナムから きました。 どうぞよろしくおねがいします。","exm":"Tôi đến từ Việt Nam. Rất mong được giúp đỡ."},
+{"w":"こちらこそ","m":"chính tôi mới phải (đáp lại)","ex":"「よろしく。」「こちらこそ。」","exm":"\"Mong được giúp đỡ.\" \"Tôi cũng vậy.\""},
+{"w":"おげんきですか","m":"bạn có khỏe không?","kj":"お元気ですか","ex":"おひさしぶりです。 おげんきですか。","exm":"Lâu rồi không gặp. Bạn khỏe không?","ro":"ogenki desu ka"},
+{"w":"だいじょうぶ","m":"không sao, ổn","kj":"大丈夫","ex":"「だいじょうぶ？」「うん、 だいじょうぶ。」","exm":"\"Ổn không?\" \"Ừ, ổn.\""},
+{"w":"おめでとう","m":"chúc mừng","ex":"たんじょうび おめでとう！","exm":"Chúc mừng sinh nhật!"},
+{"w":"もしもし","m":"alô (khi gọi điện)","ex":"もしもし、 たなかです。","exm":"Alô, Tanaka đây."},
+{"w":"いらっしゃいませ","m":"xin mời vào (nhân viên cửa hàng nói)","ex":"いらっしゃいませ。 なんめいさまですか。","exm":"Xin mời vào. Quý khách đi mấy người ạ?"},
+{"w":"どうぞ","m":"xin mời","ex":"どうぞ、 すわって ください。","exm":"Xin mời ngồi."},
+{"w":"どうも","m":"cảm ơn, chào (nói ngắn gọn)","ex":"どうも ありがとう。","exm":"Cảm ơn nhiều."}
 ]},
-{n:2, t:'Số đếm',
-v:[
-'ゼロ|số 0','いち|số 1|一','に|số 2|二','さん|số 3|三','よん|số 4 (còn đọc し)|四','ご|số 5|五','ろく|số 6|六','なな|số 7 (còn đọc しち)|七','はち|số 8|八','きゅう|số 9 (còn đọc く)|九','じゅう|số 10|十',
-'ひゃく|100|百','せん|1.000|千','まん|10.000|万',
-'ひとつ|1 cái|一つ','ふたつ|2 cái|二つ','みっつ|3 cái|三つ','いくつ|mấy cái, bao nhiêu cái','いくら|bao nhiêu tiền','ひとり|1 người|一人','ふたり|2 người|二人'
+{n:2, t:"Số đếm", v:[
+{"w":"ゼロ","m":"số 0","ex":"ゼロから じゅうまで かぞえます。","exm":"Đếm từ 0 đến 10."},
+{"w":"いち","m":"số 1","kj":"一","ex":"いち、 に、 さん！","exm":"Một, hai, ba!"},
+{"w":"に","m":"số 2","kj":"二","ex":"にねんせいです。","exm":"Tôi là sinh viên năm hai."},
+{"w":"さん","m":"số 3","kj":"三","ex":"さんじに あいましょう。","exm":"Gặp nhau lúc 3 giờ nhé."},
+{"w":"よん","m":"số 4 (còn đọc し)","kj":"四","ex":"よじに おわります。","exm":"Kết thúc lúc 4 giờ."},
+{"w":"ご","m":"số 5","kj":"五","ex":"ごじに おきます。","exm":"Tôi dậy lúc 5 giờ."},
+{"w":"ろく","m":"số 6","kj":"六","ex":"ろくにん います。","exm":"Có 6 người."},
+{"w":"なな","m":"số 7 (còn đọc しち)","kj":"七","ex":"しちじに あさごはんを たべます。","exm":"Tôi ăn sáng lúc 7 giờ."},
+{"w":"はち","m":"số 8","kj":"八","ex":"はちじに がっこうへ いきます。","exm":"8 giờ tôi đi học."},
+{"w":"きゅう","m":"số 9 (còn đọc く)","kj":"九","ex":"くじから べんきょうします。","exm":"Tôi học từ 9 giờ."},
+{"w":"じゅう","m":"số 10","kj":"十","ex":"がくせいが じゅうにん います。","exm":"Có 10 học sinh."},
+{"w":"ひゃく","m":"100","kj":"百","ex":"この りんごは ひゃくえんです。","exm":"Quả táo này 100 yên."},
+{"w":"せん","m":"1.000","kj":"千","ex":"この ほんは せんえんです。","exm":"Cuốn sách này 1.000 yên."},
+{"w":"まん","m":"10.000","kj":"万","ex":"いちまんえんで かいました。","exm":"Tôi mua với giá 10.000 yên."},
+{"w":"ひとつ","m":"1 cái","kj":"一つ","ex":"りんごを ひとつ ください。","exm":"Cho tôi 1 quả táo."},
+{"w":"ふたつ","m":"2 cái","kj":"二つ","ex":"たまごを ふたつ たべました。","exm":"Tôi đã ăn 2 quả trứng."},
+{"w":"みっつ","m":"3 cái","kj":"三つ","ex":"いすが みっつ あります。","exm":"Có 3 cái ghế."},
+{"w":"よっつ","m":"4 cái","kj":"四つ","ex":"ケーキを よっつ かいました。","exm":"Tôi đã mua 4 cái bánh."},
+{"w":"いつつ","m":"5 cái","kj":"五つ","ex":"みかんが いつつ あります。","exm":"Có 5 quả quýt."},
+{"w":"むっつ","m":"6 cái","kj":"六つ","ex":"コップを むっつ ならべます。","exm":"Tôi xếp 6 cái cốc."},
+{"w":"ななつ","m":"7 cái","kj":"七つ","ex":"にじには ななつの いろが あります。","exm":"Cầu vồng có 7 màu."},
+{"w":"やっつ","m":"8 cái","kj":"八つ","ex":"おにぎりを やっつ つくりました。","exm":"Tôi đã làm 8 nắm cơm."},
+{"w":"ここのつ","m":"9 cái","kj":"九つ","ex":"ボールが ここのつ あります。","exm":"Có 9 quả bóng."},
+{"w":"とお","m":"10 cái","kj":"十","ex":"ぜんぶで とお あります。","exm":"Tổng cộng có 10 cái."},
+{"w":"いくつ","m":"mấy cái, bao nhiêu cái","ex":"りんごは いくつ ありますか。","exm":"Có mấy quả táo?"},
+{"w":"いくら","m":"bao nhiêu tiền","ex":"これは いくらですか。","exm":"Cái này bao nhiêu tiền?"},
+{"w":"ひとり","m":"1 người","kj":"一人","ex":"ひとりで にほんへ きました。","exm":"Tôi đã đến Nhật một mình."},
+{"w":"ふたり","m":"2 người","kj":"二人","ex":"ふたりで えいがを みました。","exm":"Hai người đã xem phim cùng nhau."}
 ]},
-{n:3, t:'Gia đình, con người',
-v:[
-'かぞく|gia đình|家族','おとうさん|bố|お父さん','おかあさん|mẹ|お母さん','おにいさん|anh trai|お兄さん','おねえさん|chị gái|お姉さん','おとうと|em trai|弟','いもうと|em gái|妹','おじいさん|ông','おばあさん|bà','りょうしん|bố mẹ|両親',
-'こども|con, trẻ em|子供','あかちゃん|em bé|赤ちゃん','おっと|chồng|夫','つま|vợ|妻','ともだち|bạn bè|友達',
-'ひと|người|人','おとこ|đàn ông, con trai|男','おんな|phụ nữ, con gái|女','わたし|tôi|私','あなた|bạn','せんせい|giáo viên|先生','がくせい|học sinh, sinh viên|学生'
+{n:3, t:"Gia đình, con người", v:[
+{"w":"かぞく","m":"gia đình","kj":"家族","ex":"かぞくは よにんです。","exm":"Gia đình tôi có 4 người."},
+{"w":"おとうさん","m":"bố","kj":"お父さん","ex":"おとうさん、 おはよう。","exm":"Bố ơi, chào buổi sáng."},
+{"w":"おかあさん","m":"mẹ","kj":"お母さん","ex":"おかあさんは りょうりが じょうずです。","exm":"Mẹ nấu ăn giỏi."},
+{"w":"おにいさん","m":"anh trai","kj":"お兄さん","ex":"おにいさんは だいがくせいです。","exm":"Anh trai là sinh viên đại học."},
+{"w":"おねえさん","m":"chị gái","kj":"お姉さん","ex":"おねえさんは とうきょうに すんで います。","exm":"Chị gái đang sống ở Tokyo."},
+{"w":"おとうと","m":"em trai","kj":"弟","ex":"おとうとは じゅっさいです。","exm":"Em trai tôi 10 tuổi."},
+{"w":"いもうと","m":"em gái","kj":"妹","ex":"いもうとと よく あそびます。","exm":"Tôi hay chơi với em gái."},
+{"w":"おじいさん","m":"ông","ex":"おじいさんは まいあさ さんぽします。","exm":"Ông đi dạo mỗi sáng."},
+{"w":"おばあさん","m":"bà","ex":"おばあさんは ことし はちじゅっさいです。","exm":"Năm nay bà 80 tuổi."},
+{"w":"りょうしん","m":"bố mẹ","kj":"両親","ex":"りょうしんは ベトナムに います。","exm":"Bố mẹ tôi ở Việt Nam."},
+{"w":"ちち","m":"bố (tôi, khi nói với người ngoài)","kj":"父","ex":"ちちは いしゃです。","exm":"Bố tôi là bác sĩ."},
+{"w":"はは","m":"mẹ (tôi, khi nói với người ngoài)","kj":"母","ex":"ははの なまえは ランです。","exm":"Mẹ tôi tên là Lan."},
+{"w":"あに","m":"anh trai (tôi)","kj":"兄","ex":"あには ぎんこうで はたらいて います。","exm":"Anh trai tôi đang làm ở ngân hàng."},
+{"w":"あね","m":"chị gái (tôi)","kj":"姉","ex":"あねは けっこんして います。","exm":"Chị tôi đã kết hôn."},
+{"w":"きょうだい","m":"anh chị em","kj":"兄弟","ex":"きょうだいは いますか。","exm":"Bạn có anh chị em không?"},
+{"w":"こども","m":"con, trẻ em","kj":"子供","ex":"こどもが ふたり います。","exm":"Tôi có 2 con."},
+{"w":"あかちゃん","m":"em bé","kj":"赤ちゃん","ex":"あかちゃんが ないて います。","exm":"Em bé đang khóc."},
+{"w":"おっと","m":"chồng (tôi)","kj":"夫","ex":"おっとは りょうりが じょうずです。","exm":"Chồng tôi nấu ăn giỏi."},
+{"w":"つま","m":"vợ (tôi)","kj":"妻","ex":"つまと かいものに いきます。","exm":"Tôi đi mua sắm với vợ."},
+{"w":"ごしゅじん","m":"chồng (của người khác)","kj":"ご主人","ex":"ごしゅじんは おげんきですか。","exm":"Chồng chị có khỏe không?"},
+{"w":"おくさん","m":"vợ (của người khác)","kj":"奥さん","ex":"おくさんは にほんじんですか。","exm":"Vợ anh là người Nhật à?"},
+{"w":"ともだち","m":"bạn bè","kj":"友達","ex":"ともだちと えいがを みます。","exm":"Tôi xem phim với bạn."},
+{"w":"ひと","m":"người","kj":"人","ex":"あの ひとは だれですか。","exm":"Người kia là ai vậy?"},
+{"w":"おとこ","m":"đàn ông, nam","kj":"男","ex":"おとこの ひとが きました。","exm":"Một người đàn ông đã đến."},
+{"w":"おんな","m":"phụ nữ, nữ","kj":"女","ex":"おんなの ひとが うたって います。","exm":"Một người phụ nữ đang hát."},
+{"w":"おとこのこ","m":"bé trai","kj":"男の子","ex":"おとこのこが こうえんで あそんで います。","exm":"Bé trai đang chơi ở công viên."},
+{"w":"おんなのこ","m":"bé gái","kj":"女の子","ex":"おんなのこは ねこが すきです。","exm":"Bé gái thích mèo."},
+{"w":"おとな","m":"người lớn","kj":"大人","ex":"おとなは ひとり せんえんです。","exm":"Người lớn 1.000 yên một người."},
+{"w":"みんな","m":"mọi người","ex":"みんなで うたいましょう。","exm":"Mọi người cùng hát nào."},
+{"w":"わたし","m":"tôi","kj":"私","ex":"わたしは ベトナムじんです。","exm":"Tôi là người Việt Nam."},
+{"w":"あなた","m":"bạn","ex":"あなたの なまえは なんですか。","exm":"Tên bạn là gì?"},
+{"w":"せんせい","m":"giáo viên","kj":"先生","ex":"やまだせんせいは やさしいです。","exm":"Thầy Yamada hiền."},
+{"w":"がくせい","m":"học sinh, sinh viên","kj":"学生","ex":"わたしは がくせいです。","exm":"Tôi là sinh viên."},
+{"w":"なまえ","m":"tên","kj":"名前","ex":"ここに なまえを かいて ください。","exm":"Hãy viết tên vào đây."}
 ]},
-{n:4, t:'Đồ ăn',
-v:[
-'ごはん|cơm, bữa ăn|ご飯','パン|bánh mì','たまご|trứng|卵','にく|thịt|肉','さかな|cá|魚','やさい|rau củ|野菜','くだもの|trái cây|果物','りんご|táo','バナナ|chuối','みかん|quýt',
-'すし|sushi','ラーメン|mì ramen','うどん|mì udon','おにぎり|cơm nắm','カレー|cà ri','サラダ|salad','ハンバーガー|bánh hamburger','ピザ|pizza',
-'ケーキ|bánh kem, bánh ngọt','アイスクリーム|kem','チョコレート|sô cô la','おかし|bánh kẹo|お菓子','さとう|đường|砂糖','しお|muối|塩','チーズ|phô mai'
+{n:4, t:"Đồ ăn", v:[
+{"w":"ごはん","m":"cơm, bữa ăn","kj":"ご飯","ex":"ごはんを たべましょう。","exm":"Ăn cơm thôi."},
+{"w":"あさごはん","m":"bữa sáng","kj":"朝ご飯","ex":"あさごはんは パンです。","exm":"Bữa sáng tôi ăn bánh mì."},
+{"w":"ひるごはん","m":"bữa trưa","kj":"昼ご飯","ex":"ひるごはんを いっしょに たべませんか。","exm":"Ăn trưa cùng nhau không?"},
+{"w":"ばんごはん","m":"bữa tối","kj":"晩ご飯","ex":"ばんごはんは なにが いい？","exm":"Bữa tối ăn gì đây?"},
+{"w":"りょうり","m":"món ăn, việc nấu ăn","kj":"料理","ex":"にほんりょうりが すきです。","exm":"Tôi thích món Nhật."},
+{"w":"べんとう","m":"cơm hộp","kj":"弁当","ex":"コンビニで べんとうを かいました。","exm":"Tôi đã mua cơm hộp ở cửa hàng tiện lợi."},
+{"w":"パン","m":"bánh mì","ex":"まいあさ パンを たべます。","exm":"Sáng nào tôi cũng ăn bánh mì."},
+{"w":"たまご","m":"trứng","kj":"卵","ex":"たまごを みっつ ください。","exm":"Cho tôi 3 quả trứng."},
+{"w":"にく","m":"thịt","kj":"肉","ex":"にくより さかなが すきです。","exm":"Tôi thích cá hơn thịt."},
+{"w":"ぎゅうにく","m":"thịt bò","kj":"牛肉","ex":"ぎゅうにくは たかいです。","exm":"Thịt bò đắt."},
+{"w":"ぶたにく","m":"thịt lợn","kj":"豚肉","ex":"スーパーで ぶたにくを かいました。","exm":"Tôi đã mua thịt lợn ở siêu thị."},
+{"w":"とりにく","m":"thịt gà","kj":"鶏肉","ex":"とりにくで カレーを つくります。","exm":"Tôi làm cà ri bằng thịt gà."},
+{"w":"さかな","m":"cá","kj":"魚","ex":"この さかなは おいしいです。","exm":"Con cá này ngon."},
+{"w":"やさい","m":"rau củ","kj":"野菜","ex":"やさいを たくさん たべて ください。","exm":"Hãy ăn nhiều rau."},
+{"w":"くだもの","m":"trái cây","kj":"果物","ex":"どんな くだものが すきですか。","exm":"Bạn thích trái cây nào?"},
+{"w":"りんご","m":"táo","ex":"りんごを ひとつ たべました。","exm":"Tôi đã ăn 1 quả táo."},
+{"w":"バナナ","m":"chuối","ex":"バナナは やすいです。","exm":"Chuối rẻ."},
+{"w":"みかん","m":"quýt","ex":"ふゆは みかんが おいしいです。","exm":"Mùa đông quýt ngon."},
+{"w":"いちご","m":"dâu tây","ex":"いちごの ケーキが すきです。","exm":"Tôi thích bánh dâu tây."},
+{"w":"すし","m":"sushi","ex":"すしを たべに いきましょう。","exm":"Đi ăn sushi thôi."},
+{"w":"てんぷら","m":"tempura (đồ chiên tẩm bột)","ex":"えびの てんぷらが すきです。","exm":"Tôi thích tempura tôm."},
+{"w":"ラーメン","m":"mì ramen","ex":"この ラーメンは からいです。","exm":"Món ramen này cay."},
+{"w":"うどん","m":"mì udon","ex":"ひるに うどんを たべました。","exm":"Trưa nay tôi ăn udon."},
+{"w":"おにぎり","m":"cơm nắm","ex":"おにぎりを ふたつ かいました。","exm":"Tôi mua 2 nắm cơm."},
+{"w":"カレー","m":"cà ri","ex":"この カレーは あまり からくないです。","exm":"Món cà ri này không cay lắm."},
+{"w":"サラダ","m":"salad","ex":"サラダを つくりましょう。","exm":"Làm salad nào."},
+{"w":"ハンバーガー","m":"bánh hamburger","ex":"ハンバーガーと コーラを ください。","exm":"Cho tôi hamburger và cô-ca."},
+{"w":"ピザ","m":"pizza","ex":"みんなで ピザを たべました。","exm":"Mọi người cùng ăn pizza."},
+{"w":"ケーキ","m":"bánh kem, bánh ngọt","ex":"たんじょうびに ケーキを たべます。","exm":"Sinh nhật thì ăn bánh kem."},
+{"w":"アイスクリーム","m":"kem","ex":"なつは アイスクリームが いちばんです。","exm":"Mùa hè kem là nhất."},
+{"w":"チョコレート","m":"sô cô la","ex":"チョコレートは あまいです。","exm":"Sô cô la ngọt."},
+{"w":"おかし","m":"bánh kẹo","kj":"お菓子","ex":"こどもは おかしが すきです。","exm":"Trẻ con thích bánh kẹo."},
+{"w":"さとう","m":"đường","kj":"砂糖","ex":"コーヒーに さとうを いれますか。","exm":"Bạn có cho đường vào cà phê không?"},
+{"w":"しお","m":"muối","kj":"塩","ex":"しおを すこし いれて ください。","exm":"Hãy cho một ít muối."},
+{"w":"しょうゆ","m":"nước tương","ex":"すしに しょうゆを つけます。","exm":"Chấm sushi vào nước tương."},
+{"w":"チーズ","m":"phô mai","ex":"チーズは すきじゃ ありません。","exm":"Tôi không thích phô mai."}
 ]},
-{n:5, t:'Đồ uống, quán ăn',
-v:[
-'みず|nước|水','おちゃ|trà|お茶','こうちゃ|trà đen|紅茶','コーヒー|cà phê','ぎゅうにゅう|sữa bò|牛乳','ジュース|nước ép, nước ngọt','ビール|bia','ワイン|rượu vang','おさけ|rượu, rượu sake|お酒','コーラ|cô-ca','おゆ|nước nóng|お湯','スープ|súp',
-'のみもの|đồ uống|飲み物','たべもの|đồ ăn|食べ物',
-'レストラン|nhà hàng','カフェ|quán cà phê','メニュー|thực đơn','コップ|cái cốc','はし|đũa|箸','フォーク|cái nĩa','スプーン|cái thìa'
+{n:5, t:"Đồ uống, quán ăn", v:[
+{"w":"みず","m":"nước","kj":"水","ex":"みずを ください。","exm":"Cho tôi nước."},
+{"w":"おちゃ","m":"trà","kj":"お茶","ex":"おちゃを のみませんか。","exm":"Uống trà không?"},
+{"w":"こうちゃ","m":"trà đen","kj":"紅茶","ex":"こうちゃに ミルクを いれます。","exm":"Tôi cho sữa vào trà đen."},
+{"w":"コーヒー","m":"cà phê","ex":"あさは コーヒーを のみます。","exm":"Buổi sáng tôi uống cà phê."},
+{"w":"ぎゅうにゅう","m":"sữa bò","kj":"牛乳","ex":"まいにち ぎゅうにゅうを のみます。","exm":"Ngày nào tôi cũng uống sữa bò."},
+{"w":"ミルク","m":"sữa","ex":"ミルクを すこし ください。","exm":"Cho tôi một chút sữa."},
+{"w":"ジュース","m":"nước ép, nước ngọt","ex":"オレンジジュースを ください。","exm":"Cho tôi nước cam."},
+{"w":"ビール","m":"bia","ex":"ビールを いっぱい のみました。","exm":"Tôi đã uống một cốc bia."},
+{"w":"ワイン","m":"rượu vang","ex":"あかワインが すきです。","exm":"Tôi thích vang đỏ."},
+{"w":"おさけ","m":"rượu, rượu sake","kj":"お酒","ex":"おさけは のみません。","exm":"Tôi không uống rượu."},
+{"w":"コーラ","m":"cô-ca","ex":"つめたい コーラが のみたいです。","exm":"Tôi muốn uống cô-ca lạnh."},
+{"w":"おゆ","m":"nước nóng","kj":"お湯","ex":"おゆを わかします。","exm":"Tôi đun nước nóng."},
+{"w":"スープ","m":"súp","ex":"この スープは あついです。","exm":"Súp này nóng."},
+{"w":"のみもの","m":"đồ uống","kj":"飲み物","ex":"のみものは なにが いいですか。","exm":"Bạn muốn uống gì?"},
+{"w":"たべもの","m":"đồ ăn","kj":"食べ物","ex":"すきな たべものは なんですか。","exm":"Món ăn bạn thích là gì?"},
+{"w":"レストラン","m":"nhà hàng","ex":"えきの まえの レストランで たべました。","exm":"Tôi đã ăn ở nhà hàng trước ga."},
+{"w":"しょくどう","m":"nhà ăn, quán cơm","kj":"食堂","ex":"だいがくの しょくどうは やすいです。","exm":"Nhà ăn của trường đại học rẻ."},
+{"w":"きっさてん","m":"quán cà phê (kiểu cũ)","kj":"喫茶店","ex":"きっさてんで ともだちを まちます。","exm":"Tôi đợi bạn ở quán cà phê."},
+{"w":"カフェ","m":"quán cà phê","ex":"あたらしい カフェへ いきました。","exm":"Tôi đã đến quán cà phê mới."},
+{"w":"メニュー","m":"thực đơn","ex":"メニューを みせて ください。","exm":"Cho tôi xem thực đơn."},
+{"w":"コップ","m":"cái cốc","ex":"コップに みずを いれます。","exm":"Tôi rót nước vào cốc."},
+{"w":"ちゃわん","m":"bát ăn cơm","kj":"茶碗","ex":"ちゃわんに ごはんを いれます。","exm":"Tôi xới cơm vào bát."},
+{"w":"おさら","m":"cái đĩa","kj":"お皿","ex":"おさらを あらいます。","exm":"Tôi rửa đĩa."},
+{"w":"はし","m":"đũa","kj":"箸","ex":"はしで たべます。","exm":"Tôi ăn bằng đũa."},
+{"w":"フォーク","m":"cái nĩa","ex":"フォークを ください。","exm":"Cho tôi cái nĩa."},
+{"w":"スプーン","m":"cái thìa","ex":"スプーンで スープを のみます。","exm":"Tôi ăn súp bằng thìa."},
+{"w":"ナイフ","m":"con dao","ex":"ナイフで パンを きります。","exm":"Tôi cắt bánh mì bằng dao."}
 ]},
-{n:6, t:'Màu sắc',
-v:[
-'いろ|màu sắc|色','あか|đỏ|赤','あお|xanh dương (cũng dùng cho xanh lá)|青','きいろ|vàng|黄色','みどり|xanh lá|緑','しろ|trắng|白','くろ|đen|黒','ちゃいろ|nâu|茶色','はいいろ|xám|灰色','むらさき|tím|紫',
-'ピンク|hồng','オレンジ|cam','グレー|xám (mượn từ tiếng Anh)','ブルー|xanh dương (mượn từ tiếng Anh)','きん|vàng kim|金','ぎん|bạc|銀','あかるい|sáng|明るい','くらい|tối|暗い'
+{n:6, t:"Màu sắc", v:[
+{"w":"いろ","m":"màu sắc","kj":"色","ex":"すきな いろは なんですか。","exm":"Bạn thích màu gì?"},
+{"w":"あか","m":"màu đỏ","kj":"赤","ex":"あかが すきです。","exm":"Tôi thích màu đỏ."},
+{"w":"あかい","m":"đỏ (tính từ)","kj":"赤い","ex":"あかい くるまが あります。","exm":"Có chiếc ô tô màu đỏ."},
+{"w":"あお","m":"màu xanh dương (cũng dùng cho xanh lá)","kj":"青","ex":"しんごうが あおに なりました。","exm":"Đèn giao thông đã chuyển xanh."},
+{"w":"あおい","m":"xanh (tính từ)","kj":"青い","ex":"そらが あおいです。","exm":"Bầu trời xanh."},
+{"w":"きいろ","m":"màu vàng","kj":"黄色","ex":"きいろの かさを かいました。","exm":"Tôi mua cái ô màu vàng."},
+{"w":"きいろい","m":"vàng (tính từ)","kj":"黄色い","ex":"きいろい はなが さいて います。","exm":"Hoa vàng đang nở."},
+{"w":"みどり","m":"màu xanh lá","kj":"緑","ex":"こうえんは みどりが おおいです。","exm":"Công viên có nhiều cây xanh."},
+{"w":"しろ","m":"màu trắng","kj":"白","ex":"しろの シャツを きます。","exm":"Tôi mặc áo sơ mi trắng."},
+{"w":"しろい","m":"trắng (tính từ)","kj":"白い","ex":"しろい ねこが います。","exm":"Có con mèo trắng."},
+{"w":"くろ","m":"màu đen","kj":"黒","ex":"くろの くつを はきます。","exm":"Tôi đi giày đen."},
+{"w":"くろい","m":"đen (tính từ)","kj":"黒い","ex":"くろい かばんは わたしのです。","exm":"Cái cặp đen là của tôi."},
+{"w":"ちゃいろ","m":"màu nâu","kj":"茶色","ex":"ちゃいろの いぬを かって います。","exm":"Tôi nuôi con chó màu nâu."},
+{"w":"はいいろ","m":"màu xám","kj":"灰色","ex":"そらが はいいろです。","exm":"Bầu trời màu xám."},
+{"w":"むらさき","m":"màu tím","kj":"紫","ex":"むらさきの はなが きれいです。","exm":"Hoa màu tím đẹp."},
+{"w":"ピンク","m":"màu hồng","ex":"ピンクの ふくが すきです。","exm":"Tôi thích quần áo màu hồng."},
+{"w":"オレンジ","m":"màu cam","ex":"オレンジの ボールが あります。","exm":"Có quả bóng màu cam."},
+{"w":"グレー","m":"màu xám (mượn từ tiếng Anh)","ex":"グレーの コートを かいました。","exm":"Tôi đã mua áo khoác màu xám."},
+{"w":"ブルー","m":"màu xanh dương (mượn từ tiếng Anh)","ex":"ブルーの ペンで かきます。","exm":"Tôi viết bằng bút xanh."},
+{"w":"きん","m":"màu vàng kim","kj":"金","ex":"きんの とけいです。","exm":"Đây là đồng hồ vàng."},
+{"w":"ぎん","m":"màu bạc","kj":"銀","ex":"ぎんの スプーンです。","exm":"Đây là thìa bạc."},
+{"w":"あかるい","m":"sáng","kj":"明るい","ex":"この へやは あかるいです。","exm":"Căn phòng này sáng."},
+{"w":"くらい","m":"tối","kj":"暗い","ex":"そとは もう くらいです。","exm":"Bên ngoài đã tối rồi."}
 ]},
-{n:7, t:'Thời gian, ngày tháng',
-v:[
-'いま|bây giờ|今','きょう|hôm nay|今日','あした|ngày mai|明日','きのう|hôm qua|昨日','まいにち|mỗi ngày|毎日','あさ|buổi sáng|朝','ひる|buổi trưa|昼','よる|buổi tối, ban đêm|夜','ごぜん|buổi sáng (AM)|午前','ごご|buổi chiều (PM)|午後','じ|giờ (đếm giờ)|時','ふん|phút (còn đọc ぷん)|分',
-'げつようび|thứ Hai|月曜日','かようび|thứ Ba|火曜日','すいようび|thứ Tư|水曜日','もくようび|thứ Năm|木曜日','きんようび|thứ Sáu|金曜日','どようび|thứ Bảy|土曜日','にちようび|chủ nhật|日曜日',
-'しゅうまつ|cuối tuần|週末','らいしゅう|tuần sau|来週','らいげつ|tháng sau|来月','ことし|năm nay|今年'
+{n:7, t:"Thời gian, ngày tháng", v:[
+{"w":"いま","m":"bây giờ","kj":"今","ex":"いま なんじですか。","exm":"Bây giờ là mấy giờ?"},
+{"w":"きょう","m":"hôm nay","kj":"今日","ex":"きょうは いい てんきです。","exm":"Hôm nay trời đẹp."},
+{"w":"あした","m":"ngày mai","kj":"明日","ex":"あした また きます。","exm":"Mai tôi lại đến."},
+{"w":"きのう","m":"hôm qua","kj":"昨日","ex":"きのう えいがを みました。","exm":"Hôm qua tôi đã xem phim."},
+{"w":"まいにち","m":"mỗi ngày","kj":"毎日","ex":"まいにち にほんごを べんきょうします。","exm":"Ngày nào tôi cũng học tiếng Nhật."},
+{"w":"あさ","m":"buổi sáng","kj":"朝","ex":"あさ ろくじに おきます。","exm":"Tôi dậy lúc 6 giờ sáng."},
+{"w":"ひる","m":"buổi trưa","kj":"昼","ex":"ひるは いつも いそがしいです。","exm":"Buổi trưa lúc nào cũng bận."},
+{"w":"よる","m":"buổi tối, ban đêm","kj":"夜","ex":"よる おそくまで べんきょうしました。","exm":"Tôi đã học đến khuya."},
+{"w":"ごぜん","m":"buổi sáng (AM)","kj":"午前","ex":"ごぜん くじに はじまります。","exm":"Bắt đầu lúc 9 giờ sáng."},
+{"w":"ごご","m":"buổi chiều (PM)","kj":"午後","ex":"ごご さんじに あいましょう。","exm":"Gặp nhau lúc 3 giờ chiều nhé."},
+{"w":"じ","m":"giờ","kj":"時","ex":"いま じゅうじです。","exm":"Bây giờ là 10 giờ."},
+{"w":"ふん","m":"phút (còn đọc ぷん)","kj":"分","ex":"ごふん まって ください。","exm":"Hãy đợi 5 phút."},
+{"w":"はん","m":"rưỡi (30 phút)","kj":"半","ex":"しちじはんに おきます。","exm":"Tôi dậy lúc 7 rưỡi."},
+{"w":"げつようび","m":"thứ Hai","kj":"月曜日","ex":"げつようびは しごとです。","exm":"Thứ Hai tôi đi làm."},
+{"w":"かようび","m":"thứ Ba","kj":"火曜日","ex":"かようびに テストが あります。","exm":"Thứ Ba có bài kiểm tra."},
+{"w":"すいようび","m":"thứ Tư","kj":"水曜日","ex":"すいようびは やすみです。","exm":"Thứ Tư được nghỉ."},
+{"w":"もくようび","m":"thứ Năm","kj":"木曜日","ex":"もくようびに あいましょう。","exm":"Gặp nhau vào thứ Năm nhé."},
+{"w":"きんようび","m":"thứ Sáu","kj":"金曜日","ex":"きんようびの よる、 のみに いきます。","exm":"Tối thứ Sáu tôi đi nhậu."},
+{"w":"どようび","m":"thứ Bảy","kj":"土曜日","ex":"どようびは なにを しますか。","exm":"Thứ Bảy bạn làm gì?"},
+{"w":"にちようび","m":"chủ nhật","kj":"日曜日","ex":"にちようびは うちで やすみます。","exm":"Chủ nhật tôi nghỉ ở nhà."},
+{"w":"しゅうまつ","m":"cuối tuần","kj":"週末","ex":"しゅうまつは どこかへ いきますか。","exm":"Cuối tuần bạn có đi đâu không?"},
+{"w":"らいしゅう","m":"tuần sau","kj":"来週","ex":"らいしゅう にほんへ いきます。","exm":"Tuần sau tôi đi Nhật."},
+{"w":"らいげつ","m":"tháng sau","kj":"来月","ex":"らいげつ ひっこします。","exm":"Tháng sau tôi chuyển nhà."},
+{"w":"ことし","m":"năm nay","kj":"今年","ex":"ことしは にじゅっさいです。","exm":"Năm nay tôi 20 tuổi."}
 ]},
-{n:8, t:'Cơ thể, sức khỏe',
-v:[
-'からだ|cơ thể|体','あたま|đầu|頭','かお|mặt|顔','め|mắt|目','みみ|tai|耳','はな|mũi (hoa là 花)|鼻','くち|miệng|口','は|răng|歯','かみ|tóc|髪','くび|cổ|首','かた|vai|肩','むね|ngực|胸',
-'おなか|bụng','せなか|lưng|背中','て|tay, bàn tay|手','ゆび|ngón tay|指','あし|chân|足','ひざ|đầu gối|膝','こえ|giọng nói|声',
-'げんき|khỏe mạnh|元気','びょうき|bệnh|病気','いたい|đau|痛い','ねつ|sốt|熱'
+{n:8, t:"Cơ thể, sức khỏe", v:[
+{"w":"からだ","m":"cơ thể","kj":"体","ex":"やさいは からだに いいです。","exm":"Rau tốt cho cơ thể."},
+{"w":"あたま","m":"đầu","kj":"頭","ex":"あたまが いたいです。","exm":"Tôi bị đau đầu."},
+{"w":"かお","m":"mặt","kj":"顔","ex":"かおを あらいます。","exm":"Tôi rửa mặt."},
+{"w":"め","m":"mắt","kj":"目","ex":"めが おおきいです。","exm":"Mắt to."},
+{"w":"みみ","m":"tai","kj":"耳","ex":"うさぎは みみが ながいです。","exm":"Thỏ có tai dài."},
+{"w":"はな","m":"mũi (hoa là 花)","kj":"鼻","ex":"ぞうは はなが ながいです。","exm":"Voi có mũi (vòi) dài."},
+{"w":"くち","m":"miệng","kj":"口","ex":"くちを あけて ください。","exm":"Hãy há miệng ra."},
+{"w":"は","m":"răng","kj":"歯","ex":"まいばん はを みがきます。","exm":"Tối nào tôi cũng đánh răng."},
+{"w":"かみ","m":"tóc","kj":"髪","ex":"かみが ながいですね。","exm":"Tóc dài nhỉ."},
+{"w":"くび","m":"cổ","kj":"首","ex":"きりんは くびが ながいです。","exm":"Hươu cao cổ có cổ dài."},
+{"w":"かた","m":"vai","kj":"肩","ex":"かたに かばんを かけます。","exm":"Tôi đeo cặp lên vai."},
+{"w":"むね","m":"ngực","kj":"胸","ex":"むねが どきどきします。","exm":"Tim đập thình thịch."},
+{"w":"おなか","m":"bụng","ex":"おなかが すきました。","exm":"Tôi đói bụng rồi."},
+{"w":"せなか","m":"lưng","kj":"背中","ex":"せなかが いたいです。","exm":"Tôi bị đau lưng."},
+{"w":"て","m":"tay, bàn tay","kj":"手","ex":"てを あらって ください。","exm":"Hãy rửa tay."},
+{"w":"ゆび","m":"ngón tay","kj":"指","ex":"ゆびが ながいです。","exm":"Ngón tay dài."},
+{"w":"あし","m":"chân","kj":"足","ex":"あしが ながいです。","exm":"Chân dài."},
+{"w":"ひざ","m":"đầu gối","kj":"膝","ex":"ひざの うえに ねこが います。","exm":"Có con mèo trên đầu gối."},
+{"w":"こえ","m":"giọng nói","kj":"声","ex":"こえが おおきいです。","exm":"Giọng to."},
+{"w":"げんき","m":"khỏe mạnh","kj":"元気","ex":"おじいさんは げんきです。","exm":"Ông khỏe mạnh."},
+{"w":"びょうき","m":"bệnh","kj":"病気","ex":"びょうきで がっこうを やすみました。","exm":"Tôi nghỉ học vì bị ốm."},
+{"w":"かぜ","m":"cảm lạnh (gió là 風)","kj":"風邪","ex":"かぜを ひきました。","exm":"Tôi bị cảm."},
+{"w":"いたい","m":"đau","kj":"痛い","ex":"はが いたいです。","exm":"Tôi đau răng."},
+{"w":"ねつ","m":"sốt","kj":"熱","ex":"ねつが あります。","exm":"Tôi bị sốt."}
 ]},
-{n:9, t:'Động vật',
-v:[
-'どうぶつ|động vật|動物','いぬ|chó|犬','ねこ|mèo|猫','とり|chim|鳥','うま|ngựa|馬','うし|bò|牛','ぶた|lợn|豚','ひつじ|cừu','さる|khỉ|猿','くま|gấu|熊','ぞう|voi|象','とら|hổ|虎',
-'うさぎ|thỏ','ねずみ|chuột','へび|rắn|蛇','かめ|rùa|亀','むし|côn trùng|虫','ちょうちょう|con bướm|蝶々',
-'ライオン|sư tử','パンダ|gấu trúc','キリン|hươu cao cổ','ペット|thú cưng'
+{n:9, t:"Động vật", v:[
+{"w":"どうぶつ","m":"động vật","kj":"動物","ex":"どうぶつが すきです。","exm":"Tôi thích động vật."},
+{"w":"いぬ","m":"chó","kj":"犬","ex":"いぬを かって います。","exm":"Tôi nuôi chó."},
+{"w":"ねこ","m":"mèo","kj":"猫","ex":"ねこが ねて います。","exm":"Con mèo đang ngủ."},
+{"w":"とり","m":"chim","kj":"鳥","ex":"とりが ないて います。","exm":"Chim đang hót."},
+{"w":"うま","m":"ngựa","kj":"馬","ex":"うまは はやいです。","exm":"Ngựa chạy nhanh."},
+{"w":"うし","m":"bò","kj":"牛","ex":"うしが さんびき います。","exm":"Có 3 con bò."},
+{"w":"ぶた","m":"lợn","kj":"豚","ex":"ぶたは あたまが いいです。","exm":"Lợn rất thông minh."},
+{"w":"ひつじ","m":"cừu","ex":"ひつじは しろいです。","exm":"Cừu màu trắng."},
+{"w":"さる","m":"khỉ","kj":"猿","ex":"さるが きに のぼって います。","exm":"Khỉ đang trèo cây."},
+{"w":"くま","m":"gấu","kj":"熊","ex":"やまに くまが います。","exm":"Trên núi có gấu."},
+{"w":"ぞう","m":"voi","kj":"象","ex":"ぞうは おおきいです。","exm":"Voi to."},
+{"w":"とら","m":"hổ","kj":"虎","ex":"とらは つよいです。","exm":"Hổ mạnh."},
+{"w":"うさぎ","m":"thỏ","ex":"うさぎは にんじんが すきです。","exm":"Thỏ thích cà rốt."},
+{"w":"ねずみ","m":"chuột","ex":"だいどころに ねずみが いました！","exm":"Có chuột trong bếp!"},
+{"w":"へび","m":"rắn","kj":"蛇","ex":"へびは こわいです。","exm":"Rắn đáng sợ."},
+{"w":"かめ","m":"rùa","kj":"亀","ex":"かめは おそいです。","exm":"Rùa chậm."},
+{"w":"むし","m":"côn trùng","kj":"虫","ex":"へやに むしが います。","exm":"Trong phòng có côn trùng."},
+{"w":"ちょうちょう","m":"con bướm","ex":"ちょうちょうが とんで います。","exm":"Con bướm đang bay."},
+{"w":"ライオン","m":"sư tử","ex":"ライオンは どうぶつの おうです。","exm":"Sư tử là chúa sơn lâm."},
+{"w":"パンダ","m":"gấu trúc","ex":"どうぶつえんで パンダを みました。","exm":"Tôi đã xem gấu trúc ở sở thú."},
+{"w":"キリン","m":"hươu cao cổ","ex":"キリンは せが たかいです。","exm":"Hươu cao cổ rất cao."},
+{"w":"ペット","m":"thú cưng","ex":"ペットを かって いますか。","exm":"Bạn có nuôi thú cưng không?"},
+{"w":"どうぶつえん","m":"sở thú","kj":"動物園","ex":"にちようびに どうぶつえんへ いきます。","exm":"Chủ nhật tôi đi sở thú."}
 ]},
-{n:10, t:'Trong nhà',
-v:[
-'いえ|nhà|家','へや|căn phòng|部屋','げんかん|lối vào nhà|玄関','ドア|cửa ra vào','まど|cửa sổ|窓','かいだん|cầu thang|階段','だいどころ|nhà bếp|台所','おふろ|bồn tắm, phòng tắm|お風呂','トイレ|nhà vệ sinh','にわ|vườn, sân|庭',
-'つくえ|cái bàn học|机','いす|cái ghế|椅子','ベッド|giường','テーブル|cái bàn ăn','ソファ|ghế sofa','テレビ|ti vi','れいぞうこ|tủ lạnh|冷蔵庫','エアコン|máy điều hòa','でんき|điện, đèn điện|電気','カーテン|rèm cửa','かがみ|gương|鏡','でんわ|điện thoại|電話'
+{n:10, t:"Trong nhà", v:[
+{"w":"いえ","m":"nhà","kj":"家","ex":"あたらしい いえに すんで います。","exm":"Tôi sống trong căn nhà mới."},
+{"w":"うち","m":"nhà (mình)","ex":"うちへ かえります。","exm":"Tôi về nhà."},
+{"w":"へや","m":"căn phòng","kj":"部屋","ex":"へやを そうじします。","exm":"Tôi dọn phòng."},
+{"w":"げんかん","m":"lối vào nhà","kj":"玄関","ex":"げんかんで くつを ぬぎます。","exm":"Cởi giày ở lối vào nhà."},
+{"w":"ドア","m":"cửa ra vào","ex":"ドアを しめて ください。","exm":"Hãy đóng cửa."},
+{"w":"まど","m":"cửa sổ","kj":"窓","ex":"まどを あけましょう。","exm":"Mở cửa sổ ra nào."},
+{"w":"かいだん","m":"cầu thang","kj":"階段","ex":"かいだんで にかいへ いきます。","exm":"Đi lên tầng 2 bằng cầu thang."},
+{"w":"だいどころ","m":"nhà bếp","kj":"台所","ex":"おかあさんは だいどころに います。","exm":"Mẹ đang ở trong bếp."},
+{"w":"おふろ","m":"bồn tắm, phòng tắm","kj":"お風呂","ex":"まいばん おふろに はいります。","exm":"Tối nào tôi cũng tắm bồn."},
+{"w":"シャワー","m":"vòi sen","ex":"あさ シャワーを あびます。","exm":"Buổi sáng tôi tắm vòi sen."},
+{"w":"トイレ","m":"nhà vệ sinh","ex":"トイレは どこですか。","exm":"Nhà vệ sinh ở đâu?"},
+{"w":"にわ","m":"vườn, sân","kj":"庭","ex":"にわに はなが あります。","exm":"Trong vườn có hoa."},
+{"w":"つくえ","m":"cái bàn học","kj":"机","ex":"つくえの うえに ほんが あります。","exm":"Trên bàn có sách."},
+{"w":"いす","m":"cái ghế","ex":"いすに すわって ください。","exm":"Hãy ngồi xuống ghế."},
+{"w":"ベッド","m":"giường","ex":"ベッドで ねます。","exm":"Tôi ngủ trên giường."},
+{"w":"テーブル","m":"cái bàn ăn","ex":"テーブルに おさらを ならべます。","exm":"Tôi xếp đĩa lên bàn."},
+{"w":"ソファ","m":"ghế sofa","ex":"ソファで テレビを みます。","exm":"Tôi xem ti vi trên sofa."},
+{"w":"ほんだな","m":"giá sách","kj":"本棚","ex":"ほんだなに ほんが たくさん あります。","exm":"Trên giá có nhiều sách."},
+{"w":"テレビ","m":"ti vi","ex":"よる テレビを みます。","exm":"Buổi tối tôi xem ti vi."},
+{"w":"れいぞうこ","m":"tủ lạnh","kj":"冷蔵庫","ex":"れいぞうこに ぎゅうにゅうが あります。","exm":"Trong tủ lạnh có sữa."},
+{"w":"エアコン","m":"máy điều hòa","ex":"あついですから、 エアコンを つけましょう。","exm":"Nóng quá nên bật điều hòa nhé."},
+{"w":"でんき","m":"điện, đèn điện","kj":"電気","ex":"でんきを けして ください。","exm":"Hãy tắt đèn."},
+{"w":"カーテン","m":"rèm cửa","ex":"カーテンを あけます。","exm":"Tôi mở rèm."},
+{"w":"かがみ","m":"gương","kj":"鏡","ex":"かがみを みます。","exm":"Tôi soi gương."},
+{"w":"でんわ","m":"điện thoại","kj":"電話","ex":"あとで でんわします。","exm":"Lát nữa tôi gọi điện."},
+{"w":"はこ","m":"cái hộp","kj":"箱","ex":"はこの なかに なにが ありますか。","exm":"Trong hộp có gì?"}
 ]},
-{n:11, t:'Đồ dùng cá nhân',
-v:[
-'かばん|cặp, túi xách','かさ|ô, dù|傘','かぎ|chìa khóa|鍵','さいふ|ví|財布','とけい|đồng hồ|時計','めがね|kính mắt|眼鏡','スマホ|điện thoại thông minh','パソコン|máy tính','カメラ|máy ảnh',
-'ほん|sách|本','ノート|quyển vở','えんぴつ|bút chì|鉛筆','ペン|bút','かみ|giấy|紙','じしょ|từ điển|辞書',
-'ふく|quần áo|服','くつ|giày|靴','ぼうし|mũ|帽子','シャツ|áo sơ mi','ズボン|quần dài','くすり|thuốc|薬','おかね|tiền|お金','しゃしん|bức ảnh|写真'
+{n:11, t:"Đồ dùng cá nhân", v:[
+{"w":"かばん","m":"cặp, túi xách","ex":"あたらしい かばんを かいました。","exm":"Tôi đã mua cặp mới."},
+{"w":"かさ","m":"ô, dù","kj":"傘","ex":"あめですから、 かさを もって いきます。","exm":"Trời mưa nên tôi mang ô."},
+{"w":"かぎ","m":"chìa khóa","kj":"鍵","ex":"かぎを なくしました。","exm":"Tôi làm mất chìa khóa."},
+{"w":"さいふ","m":"ví","kj":"財布","ex":"さいふに おかねが ありません。","exm":"Trong ví không có tiền."},
+{"w":"とけい","m":"đồng hồ","kj":"時計","ex":"この とけいは たかいです。","exm":"Đồng hồ này đắt."},
+{"w":"めがね","m":"kính mắt","ex":"めがねを かけて います。","exm":"Tôi đang đeo kính."},
+{"w":"スマホ","m":"điện thoại thông minh","ex":"スマホで しゃしんを とります。","exm":"Tôi chụp ảnh bằng điện thoại."},
+{"w":"パソコン","m":"máy tính","ex":"パソコンで しごとを します。","exm":"Tôi làm việc bằng máy tính."},
+{"w":"カメラ","m":"máy ảnh","ex":"カメラを かいたいです。","exm":"Tôi muốn mua máy ảnh."},
+{"w":"ほん","m":"sách","kj":"本","ex":"この ほんは おもしろいです。","exm":"Cuốn sách này thú vị."},
+{"w":"ざっし","m":"tạp chí","kj":"雑誌","ex":"でんしゃで ざっしを よみます。","exm":"Tôi đọc tạp chí trên tàu."},
+{"w":"しんぶん","m":"báo","kj":"新聞","ex":"ちちは まいあさ しんぶんを よみます。","exm":"Bố tôi đọc báo mỗi sáng."},
+{"w":"ノート","m":"quyển vở","ex":"ノートに かんじを かきます。","exm":"Tôi viết kanji vào vở."},
+{"w":"えんぴつ","m":"bút chì","kj":"鉛筆","ex":"えんぴつで かいて ください。","exm":"Hãy viết bằng bút chì."},
+{"w":"ペン","m":"bút","ex":"ペンを かして ください。","exm":"Cho tôi mượn bút."},
+{"w":"ボールペン","m":"bút bi","ex":"あかい ボールペンは ありますか。","exm":"Có bút bi đỏ không?"},
+{"w":"けしゴム","m":"cục tẩy","kj":"消しゴム","ex":"けしゴムで けします。","exm":"Tôi xóa bằng tẩy."},
+{"w":"かみ","m":"giấy","kj":"紙","ex":"かみに なまえを かいて ください。","exm":"Hãy viết tên lên giấy."},
+{"w":"じしょ","m":"từ điển","kj":"辞書","ex":"じしょで ことばを しらべます。","exm":"Tôi tra từ bằng từ điển."},
+{"w":"てがみ","m":"lá thư","kj":"手紙","ex":"ははに てがみを かきました。","exm":"Tôi đã viết thư cho mẹ."},
+{"w":"きって","m":"con tem","kj":"切手","ex":"きってを にまい ください。","exm":"Cho tôi 2 con tem."},
+{"w":"はがき","m":"bưu thiếp","ex":"はがきを だしました。","exm":"Tôi đã gửi bưu thiếp."},
+{"w":"ふく","m":"quần áo","kj":"服","ex":"あたらしい ふくを きます。","exm":"Tôi mặc quần áo mới."},
+{"w":"くつ","m":"giày","kj":"靴","ex":"くつを はいて ください。","exm":"Hãy đi giày vào."},
+{"w":"ぼうし","m":"mũ","kj":"帽子","ex":"ぼうしを かぶります。","exm":"Tôi đội mũ."},
+{"w":"シャツ","m":"áo sơ mi","ex":"しろい シャツを かいました。","exm":"Tôi đã mua áo sơ mi trắng."},
+{"w":"ズボン","m":"quần dài","ex":"この ズボンは ながいです。","exm":"Cái quần này dài."},
+{"w":"スカート","m":"váy","ex":"あかい スカートを はいて います。","exm":"Cô ấy đang mặc váy đỏ."},
+{"w":"セーター","m":"áo len","ex":"さむいですから、 セーターを きます。","exm":"Lạnh nên tôi mặc áo len."},
+{"w":"コート","m":"áo khoác","ex":"コートを ぬいで ください。","exm":"Hãy cởi áo khoác ra."},
+{"w":"ネクタイ","m":"cà vạt","ex":"ちちに ネクタイを あげました。","exm":"Tôi đã tặng bố cà vạt."},
+{"w":"ハンカチ","m":"khăn tay","ex":"ハンカチを わすれました。","exm":"Tôi quên khăn tay."},
+{"w":"ポケット","m":"túi áo, túi quần","ex":"ポケットに かぎが あります。","exm":"Chìa khóa ở trong túi."},
+{"w":"くすり","m":"thuốc","kj":"薬","ex":"この くすりを のんで ください。","exm":"Hãy uống thuốc này."},
+{"w":"おかね","m":"tiền","kj":"お金","ex":"おかねが ありません。","exm":"Tôi không có tiền."},
+{"w":"しゃしん","m":"bức ảnh","kj":"写真","ex":"しゃしんを とっても いいですか。","exm":"Tôi chụp ảnh được không?"}
 ]},
-{n:12, t:'Địa điểm',
-v:[
-'がっこう|trường học|学校','だいがく|đại học|大学','びょういん|bệnh viện|病院','えき|nhà ga|駅','くうこう|sân bay|空港','ぎんこう|ngân hàng|銀行','ゆうびんきょく|bưu điện|郵便局',
-'スーパー|siêu thị','コンビニ|cửa hàng tiện lợi','デパート|trung tâm bách hóa','ホテル|khách sạn','こうえん|công viên|公園','としょかん|thư viện|図書館','えいがかん|rạp chiếu phim|映画館',
-'みせ|cửa hàng, tiệm|店','かいしゃ|công ty|会社','まち|thị trấn, phố|町','くに|đất nước, quê hương|国','ベトナム|Việt Nam','にほん|Nhật Bản|日本','とうきょう|Tokyo|東京'
+{n:12, t:"Địa điểm", v:[
+{"w":"がっこう","m":"trường học","kj":"学校","ex":"がっこうは はちじに はじまります。","exm":"Trường bắt đầu lúc 8 giờ."},
+{"w":"だいがく","m":"đại học","kj":"大学","ex":"あには だいがくで べんきょうして います。","exm":"Anh tôi đang học đại học."},
+{"w":"びょういん","m":"bệnh viện","kj":"病院","ex":"びょういんへ いきます。","exm":"Tôi đi bệnh viện."},
+{"w":"えき","m":"nhà ga","kj":"駅","ex":"えきまで あるきます。","exm":"Tôi đi bộ đến ga."},
+{"w":"くうこう","m":"sân bay","kj":"空港","ex":"くうこうで ともだちを まちます。","exm":"Tôi đợi bạn ở sân bay."},
+{"w":"ぎんこう","m":"ngân hàng","kj":"銀行","ex":"ぎんこうは さんじまでです。","exm":"Ngân hàng mở đến 3 giờ."},
+{"w":"ゆうびんきょく","m":"bưu điện","kj":"郵便局","ex":"ゆうびんきょくで きってを かいます。","exm":"Tôi mua tem ở bưu điện."},
+{"w":"たいしかん","m":"đại sứ quán","kj":"大使館","ex":"ベトナムたいしかんは どこですか。","exm":"Đại sứ quán Việt Nam ở đâu?"},
+{"w":"こうばん","m":"đồn cảnh sát nhỏ","kj":"交番","ex":"こうばんで みちを ききました。","exm":"Tôi hỏi đường ở đồn cảnh sát."},
+{"w":"スーパー","m":"siêu thị","ex":"スーパーで やさいを かいます。","exm":"Tôi mua rau ở siêu thị."},
+{"w":"コンビニ","m":"cửa hàng tiện lợi","ex":"コンビニは にじゅうよじかん あいて います。","exm":"Cửa hàng tiện lợi mở 24 giờ."},
+{"w":"デパート","m":"trung tâm bách hóa","ex":"デパートで くつを かいました。","exm":"Tôi mua giày ở trung tâm bách hóa."},
+{"w":"ほんや","m":"hiệu sách","kj":"本屋","ex":"ほんやで じしょを かいました。","exm":"Tôi mua từ điển ở hiệu sách."},
+{"w":"パンや","m":"tiệm bánh mì","kj":"パン屋","ex":"この パンやは ゆうめいです。","exm":"Tiệm bánh mì này nổi tiếng."},
+{"w":"やおや","m":"cửa hàng rau","kj":"八百屋","ex":"やおやで トマトを かいます。","exm":"Tôi mua cà chua ở cửa hàng rau."},
+{"w":"ホテル","m":"khách sạn","ex":"ホテルに とまります。","exm":"Tôi nghỉ ở khách sạn."},
+{"w":"こうえん","m":"công viên","kj":"公園","ex":"こうえんで さんぽします。","exm":"Tôi đi dạo ở công viên."},
+{"w":"としょかん","m":"thư viện","kj":"図書館","ex":"としょかんで ほんを かります。","exm":"Tôi mượn sách ở thư viện."},
+{"w":"えいがかん","m":"rạp chiếu phim","kj":"映画館","ex":"えいがかんは えきの ちかくです。","exm":"Rạp phim ở gần ga."},
+{"w":"プール","m":"bể bơi","ex":"なつは プールで およぎます。","exm":"Mùa hè tôi bơi ở bể bơi."},
+{"w":"みせ","m":"cửa hàng, tiệm","kj":"店","ex":"この みせは やすいです。","exm":"Cửa hàng này rẻ."},
+{"w":"かいしゃ","m":"công ty","kj":"会社","ex":"かいしゃは とうきょうに あります。","exm":"Công ty ở Tokyo."},
+{"w":"ビル","m":"tòa nhà","ex":"あの たかい ビルは なんですか。","exm":"Tòa nhà cao kia là gì?"},
+{"w":"いりぐち","m":"lối vào","kj":"入り口","ex":"いりぐちは あちらです。","exm":"Lối vào ở đằng kia."},
+{"w":"でぐち","m":"lối ra","kj":"出口","ex":"でぐちは どこですか。","exm":"Lối ra ở đâu?"},
+{"w":"まち","m":"thị trấn, phố","kj":"町","ex":"しずかな まちです。","exm":"Đây là một thị trấn yên tĩnh."},
+{"w":"くに","m":"đất nước, quê hương","kj":"国","ex":"おくには どちらですか。","exm":"Bạn đến từ nước nào?"},
+{"w":"ベトナム","m":"Việt Nam","ex":"ベトナムから きました。","exm":"Tôi đến từ Việt Nam."},
+{"w":"にほん","m":"Nhật Bản","kj":"日本","ex":"にほんへ いきたいです。","exm":"Tôi muốn đi Nhật."},
+{"w":"とうきょう","m":"Tokyo","kj":"東京","ex":"とうきょうは ひとが おおいです。","exm":"Tokyo đông người."}
 ]},
-{n:13, t:'Đi lại, hỏi đường',
-v:[
-'でんしゃ|tàu điện|電車','ちかてつ|tàu điện ngầm|地下鉄','しんかんせん|tàu cao tốc Shinkansen|新幹線','バス|xe buýt','タクシー|taxi','くるま|ô tô|車','じてんしゃ|xe đạp|自転車','ひこうき|máy bay|飛行機','ふね|tàu thuyền|船',
-'きっぷ|vé tàu xe|切符','パスポート|hộ chiếu','にもつ|hành lý|荷物','りょこう|du lịch|旅行','ちず|bản đồ|地図','みち|con đường|道',
-'みぎ|bên phải|右','ひだり|bên trái|左','まっすぐ|thẳng','ここ|ở đây, chỗ này','そこ|ở đó','あそこ|ở kia','どこ|ở đâu','とおい|xa|遠い','ちかい|gần|近い'
+{n:13, t:"Đi lại, hỏi đường", v:[
+{"w":"でんしゃ","m":"tàu điện","kj":"電車","ex":"でんしゃで かいしゃへ いきます。","exm":"Tôi đi làm bằng tàu điện."},
+{"w":"ちかてつ","m":"tàu điện ngầm","kj":"地下鉄","ex":"ちかてつは べんりです。","exm":"Tàu điện ngầm tiện lợi."},
+{"w":"しんかんせん","m":"tàu cao tốc Shinkansen","kj":"新幹線","ex":"しんかんせんで おおさかへ いきます。","exm":"Tôi đi Osaka bằng Shinkansen."},
+{"w":"バス","m":"xe buýt","ex":"バスで がっこうへ いきます。","exm":"Tôi đi học bằng xe buýt."},
+{"w":"バスてい","m":"bến xe buýt","kj":"バス停","ex":"バスていで まちます。","exm":"Tôi đợi ở bến xe buýt."},
+{"w":"タクシー","m":"taxi","ex":"タクシーを よびましょう。","exm":"Gọi taxi thôi."},
+{"w":"くるま","m":"ô tô","kj":"車","ex":"くるまを うんてんします。","exm":"Tôi lái ô tô."},
+{"w":"じてんしゃ","m":"xe đạp","kj":"自転車","ex":"じてんしゃで こうえんへ いきます。","exm":"Tôi đạp xe đến công viên."},
+{"w":"バイク","m":"xe máy","ex":"ベトナムは バイクが おおいです。","exm":"Việt Nam có nhiều xe máy."},
+{"w":"ひこうき","m":"máy bay","kj":"飛行機","ex":"ひこうきで ベトナムへ かえります。","exm":"Tôi về Việt Nam bằng máy bay."},
+{"w":"ふね","m":"tàu thuyền","kj":"船","ex":"ふねで しまへ いきます。","exm":"Tôi đi ra đảo bằng thuyền."},
+{"w":"きっぷ","m":"vé tàu xe","kj":"切符","ex":"きっぷを かいます。","exm":"Tôi mua vé."},
+{"w":"パスポート","m":"hộ chiếu","ex":"パスポートを みせて ください。","exm":"Cho tôi xem hộ chiếu."},
+{"w":"にもつ","m":"hành lý","kj":"荷物","ex":"にもつが おもいです。","exm":"Hành lý nặng."},
+{"w":"りょこう","m":"du lịch","kj":"旅行","ex":"らいげつ りょこうします。","exm":"Tháng sau tôi đi du lịch."},
+{"w":"ちず","m":"bản đồ","kj":"地図","ex":"ちずを かいて ください。","exm":"Hãy vẽ bản đồ cho tôi."},
+{"w":"みち","m":"con đường","kj":"道","ex":"この みちを まっすぐ いって ください。","exm":"Hãy đi thẳng con đường này."},
+{"w":"かど","m":"góc đường","kj":"角","ex":"つぎの かどを みぎへ まがって ください。","exm":"Hãy rẽ phải ở góc đường tiếp theo."},
+{"w":"こうさてん","m":"ngã tư","kj":"交差点","ex":"こうさてんを わたります。","exm":"Tôi băng qua ngã tư."},
+{"w":"しんごう","m":"đèn giao thông","kj":"信号","ex":"しんごうが あかです。","exm":"Đèn đang đỏ."},
+{"w":"はし","m":"cây cầu (đũa cũng đọc はし: 箸)","kj":"橋","ex":"はしを わたります。","exm":"Tôi đi qua cầu."},
+{"w":"みぎ","m":"bên phải","kj":"右","ex":"みぎに まがって ください。","exm":"Hãy rẽ phải."},
+{"w":"ひだり","m":"bên trái","kj":"左","ex":"ひだりに ぎんこうが あります。","exm":"Bên trái có ngân hàng."},
+{"w":"まっすぐ","m":"thẳng","ex":"まっすぐ いって ください。","exm":"Hãy đi thẳng."},
+{"w":"ここ","m":"ở đây, chỗ này","ex":"ここに すわっても いいですか。","exm":"Tôi ngồi đây được không?"},
+{"w":"そこ","m":"ở đó","ex":"そこに おいて ください。","exm":"Hãy để ở đó."},
+{"w":"あそこ","m":"ở kia","ex":"あそこに えきが あります。","exm":"Đằng kia có nhà ga."},
+{"w":"どこ","m":"ở đâu","ex":"どこに すんで いますか。","exm":"Bạn đang sống ở đâu?"},
+{"w":"とおい","m":"xa","kj":"遠い","ex":"えきは とおいですか。","exm":"Nhà ga có xa không?"},
+{"w":"ちかい","m":"gần","kj":"近い","ex":"うちは がっこうから ちかいです。","exm":"Nhà tôi gần trường."}
 ]},
-{n:14, t:'Thời tiết, thiên nhiên',
-v:[
-'てんき|thời tiết|天気','はれ|trời nắng|晴れ','くもり|trời nhiều mây|曇り','あめ|mưa|雨','ゆき|tuyết|雪','かぜ|gió|風','そら|bầu trời|空','たいよう|mặt trời|太陽','つき|mặt trăng|月','ほし|ngôi sao|星',
-'やま|núi|山','かわ|sông|川','うみ|biển|海','き|cây|木','はな|hoa|花','さくら|hoa anh đào|桜',
-'はる|mùa xuân|春','なつ|mùa hè|夏','あき|mùa thu|秋','ふゆ|mùa đông|冬',
-'あつい|nóng (thời tiết)|暑い','さむい|lạnh (thời tiết)|寒い','すずしい|mát mẻ|涼しい','あたたかい|ấm áp|暖かい'
+{n:14, t:"Thời tiết, thiên nhiên", v:[
+{"w":"てんき","m":"thời tiết","kj":"天気","ex":"きょうは いい てんきですね。","exm":"Hôm nay trời đẹp nhỉ."},
+{"w":"はれ","m":"trời nắng","kj":"晴れ","ex":"あしたは はれです。","exm":"Mai trời nắng."},
+{"w":"くもり","m":"trời nhiều mây","kj":"曇り","ex":"きょうは くもりです。","exm":"Hôm nay trời nhiều mây."},
+{"w":"あめ","m":"mưa","kj":"雨","ex":"あめが ふって います。","exm":"Trời đang mưa."},
+{"w":"ゆき","m":"tuyết","kj":"雪","ex":"ゆきは しろくて きれいです。","exm":"Tuyết trắng và đẹp."},
+{"w":"かぜ","m":"gió (cảm lạnh là 風邪)","kj":"風","ex":"かぜが つよいです。","exm":"Gió mạnh."},
+{"w":"そら","m":"bầu trời","kj":"空","ex":"そらが きれいです。","exm":"Bầu trời đẹp."},
+{"w":"くも","m":"mây","kj":"雲","ex":"しろい くもが あります。","exm":"Có mây trắng."},
+{"w":"たいよう","m":"mặt trời","kj":"太陽","ex":"たいようが でました。","exm":"Mặt trời đã lên."},
+{"w":"つき","m":"mặt trăng","kj":"月","ex":"こんやは つきが きれいです。","exm":"Đêm nay trăng đẹp."},
+{"w":"ほし","m":"ngôi sao","kj":"星","ex":"ほしが たくさん みえます。","exm":"Nhìn thấy nhiều sao."},
+{"w":"やま","m":"núi","kj":"山","ex":"ふじさんは にほんで いちばん たかい やまです。","exm":"Phú Sĩ là ngọn núi cao nhất Nhật Bản."},
+{"w":"かわ","m":"sông","kj":"川","ex":"かわで およぎます。","exm":"Tôi bơi ở sông."},
+{"w":"うみ","m":"biển","kj":"海","ex":"なつやすみに うみへ いきます。","exm":"Nghỉ hè tôi đi biển."},
+{"w":"いけ","m":"cái ao","kj":"池","ex":"いけに さかなが います。","exm":"Trong ao có cá."},
+{"w":"しま","m":"hòn đảo","kj":"島","ex":"にほんは しまの くにです。","exm":"Nhật Bản là quốc đảo."},
+{"w":"き","m":"cây","kj":"木","ex":"にわに きが あります。","exm":"Trong vườn có cây."},
+{"w":"はな","m":"hoa (mũi là 鼻)","kj":"花","ex":"はなを かいました。","exm":"Tôi đã mua hoa."},
+{"w":"さくら","m":"hoa anh đào","kj":"桜","ex":"さくらは はるに さきます。","exm":"Hoa anh đào nở vào mùa xuân."},
+{"w":"はる","m":"mùa xuân","kj":"春","ex":"はるは あたたかいです。","exm":"Mùa xuân ấm áp."},
+{"w":"なつ","m":"mùa hè","kj":"夏","ex":"なつは あついです。","exm":"Mùa hè nóng."},
+{"w":"あき","m":"mùa thu","kj":"秋","ex":"あきは すずしいです。","exm":"Mùa thu mát mẻ."},
+{"w":"ふゆ","m":"mùa đông","kj":"冬","ex":"ふゆは さむいです。","exm":"Mùa đông lạnh."},
+{"w":"きせつ","m":"mùa","kj":"季節","ex":"どの きせつが すきですか。","exm":"Bạn thích mùa nào?"},
+{"w":"あつい","m":"nóng (thời tiết)","kj":"暑い","ex":"きょうは とても あついです。","exm":"Hôm nay rất nóng."},
+{"w":"さむい","m":"lạnh (thời tiết)","kj":"寒い","ex":"そとは さむいですよ。","exm":"Bên ngoài lạnh đấy."},
+{"w":"すずしい","m":"mát mẻ","kj":"涼しい","ex":"あさは すずしいです。","exm":"Buổi sáng mát mẻ."},
+{"w":"あたたかい","m":"ấm áp (暖かい: thời tiết, 温かい: đồ ăn)","kj":"暖かい","ex":"へやは あたたかいです。","exm":"Căn phòng ấm áp."}
 ]},
-{n:15, t:'Hành động hằng ngày',
-v:[
-'たべる|ăn|食べる','のむ|uống|飲む','みる|xem, nhìn|見る','きく|nghe, hỏi|聞く','よむ|đọc|読む','かく|viết|書く','はなす|nói chuyện|話す','いく|đi|行く','くる|đến|来る','かえる|về|帰る','かう|mua|買う','あう|gặp|会う',
-'する|làm','ねる|ngủ|寝る','おきる|thức dậy|起きる','はたらく|làm việc|働く','べんきょう|học tập|勉強','あそぶ|chơi|遊ぶ','およぐ|bơi|泳ぐ','うたう|hát|歌う','あるく|đi bộ|歩く','わかる|hiểu|分かる'
+{n:15, t:"Hành động hằng ngày", v:[
+{"w":"たべる","ma":"たべます","m":"ăn","kj":"食べる","ex":"あさごはんを たべます。","exm":"Tôi ăn sáng."},
+{"w":"のむ","ma":"のみます","m":"uống","kj":"飲む","ex":"みずを のみます。","exm":"Tôi uống nước."},
+{"w":"みる","ma":"みます","m":"xem, nhìn","kj":"見る","ex":"テレビを みます。","exm":"Tôi xem ti vi."},
+{"w":"きく","ma":"ききます","m":"nghe, hỏi","kj":"聞く","ex":"おんがくを ききます。","exm":"Tôi nghe nhạc."},
+{"w":"よむ","ma":"よみます","m":"đọc","kj":"読む","ex":"ほんを よみます。","exm":"Tôi đọc sách."},
+{"w":"かく","ma":"かきます","m":"viết","kj":"書く","ex":"てがみを かきます。","exm":"Tôi viết thư."},
+{"w":"はなす","ma":"はなします","m":"nói chuyện","kj":"話す","ex":"にほんごで はなします。","exm":"Tôi nói bằng tiếng Nhật."},
+{"w":"いく","ma":"いきます","m":"đi","kj":"行く","ex":"がっこうへ いきます。","exm":"Tôi đi học."},
+{"w":"くる","ma":"きます","m":"đến","kj":"来る","ex":"ともだちが うちへ きます。","exm":"Bạn đến nhà tôi."},
+{"w":"かえる","ma":"かえります","m":"về","kj":"帰る","ex":"しちじに うちへ かえります。","exm":"7 giờ tôi về nhà."},
+{"w":"かう","ma":"かいます","m":"mua","kj":"買う","ex":"パンを かいます。","exm":"Tôi mua bánh mì."},
+{"w":"あう","ma":"あいます","m":"gặp","kj":"会う","ex":"えきで ともだちに あいます。","exm":"Tôi gặp bạn ở ga."},
+{"w":"する","ma":"します","m":"làm","ex":"しゅくだいを します。","exm":"Tôi làm bài tập."},
+{"w":"ねる","ma":"ねます","m":"ngủ","kj":"寝る","ex":"じゅういちじに ねます。","exm":"11 giờ tôi đi ngủ."},
+{"w":"おきる","ma":"おきます","m":"thức dậy","kj":"起きる","ex":"ろくじに おきます。","exm":"6 giờ tôi thức dậy."},
+{"w":"はたらく","ma":"はたらきます","m":"làm việc","kj":"働く","ex":"ぎんこうで はたらいて います。","exm":"Tôi đang làm việc ở ngân hàng."},
+{"w":"べんきょうする","ma":"べんきょうします","m":"học tập","kj":"勉強する","ex":"としょかんで べんきょうします。","exm":"Tôi học ở thư viện."},
+{"w":"あそぶ","ma":"あそびます","m":"chơi","kj":"遊ぶ","ex":"こうえんで あそびます。","exm":"Chơi ở công viên."},
+{"w":"およぐ","ma":"およぎます","m":"bơi","kj":"泳ぐ","ex":"うみで およぎます。","exm":"Tôi bơi ở biển."},
+{"w":"うたう","ma":"うたいます","m":"hát","kj":"歌う","ex":"カラオケで うたいます。","exm":"Tôi hát karaoke."},
+{"w":"あるく","ma":"あるきます","m":"đi bộ","kj":"歩く","ex":"まいにち さんじゅっぷん あるきます。","exm":"Mỗi ngày tôi đi bộ 30 phút."},
+{"w":"わかる","ma":"わかります","m":"hiểu","ex":"この いみが わかりますか。","exm":"Bạn có hiểu nghĩa này không?"}
 ]},
-{n:16, t:'Tính từ thông dụng',
-v:[
-'おおきい|to, lớn|大きい','ちいさい|nhỏ|小さい','あたらしい|mới|新しい','ふるい|cũ|古い','たかい|cao, đắt|高い','ひくい|thấp|低い','やすい|rẻ|安い','ながい|dài|長い','みじかい|ngắn|短い',
-'はやい|nhanh, sớm|速い','おそい|chậm, muộn|遅い','おもい|nặng|重い','かるい|nhẹ|軽い',
-'おいしい|ngon|美味しい','たのしい|vui|楽しい','むずかしい|khó|難しい','やさしい|dễ, hiền','いい|tốt, được|良い','わるい|xấu, tệ|悪い','おもしろい|thú vị|面白い','かわいい|dễ thương|可愛い','いそがしい|bận|忙しい'
-]}
+{n:16, t:"Tính từ đuôi い", v:[
+{"w":"おおきい","m":"to, lớn","kj":"大きい","ex":"おおきい いえですね。","exm":"Nhà to nhỉ."},
+{"w":"ちいさい","m":"nhỏ","kj":"小さい","ex":"ちいさい ねこが います。","exm":"Có con mèo nhỏ."},
+{"w":"あたらしい","m":"mới","kj":"新しい","ex":"あたらしい くつを かいました。","exm":"Tôi đã mua giày mới."},
+{"w":"ふるい","m":"cũ","kj":"古い","ex":"この おてらは ふるいです。","exm":"Ngôi chùa này cổ."},
+{"w":"たかい","m":"cao, đắt","kj":"高い","ex":"あの やまは たかいです。","exm":"Ngọn núi kia cao."},
+{"w":"ひくい","m":"thấp","kj":"低い","ex":"この いすは ひくいです。","exm":"Cái ghế này thấp."},
+{"w":"やすい","m":"rẻ","kj":"安い","ex":"きょうは やさいが やすいです。","exm":"Hôm nay rau rẻ."},
+{"w":"ながい","m":"dài","kj":"長い","ex":"ながい やすみが ほしいです。","exm":"Tôi muốn có kỳ nghỉ dài."},
+{"w":"みじかい","m":"ngắn","kj":"短い","ex":"かみを みじかく しました。","exm":"Tôi đã cắt tóc ngắn."},
+{"w":"はやい","m":"sớm","kj":"早い","ex":"あさ はやく おきます。","exm":"Tôi dậy sớm."},
+{"w":"はやい","m":"nhanh","kj":"速い","ex":"しんかんせんは はやいです。","exm":"Shinkansen nhanh."},
+{"w":"おそい","m":"chậm, muộn","kj":"遅い","ex":"おそく なって すみません。","exm":"Xin lỗi vì đến muộn."},
+{"w":"おもい","m":"nặng","kj":"重い","ex":"この かばんは おもいです。","exm":"Cái cặp này nặng."},
+{"w":"かるい","m":"nhẹ","kj":"軽い","ex":"この パソコンは かるいです。","exm":"Máy tính này nhẹ."},
+{"w":"おいしい","m":"ngon","ex":"この ケーキは おいしいです。","exm":"Bánh này ngon."},
+{"w":"まずい","m":"dở (đồ ăn)","ex":"この スープは まずいです。","exm":"Súp này dở."},
+{"w":"あまい","m":"ngọt","kj":"甘い","ex":"この りんごは あまいです。","exm":"Táo này ngọt."},
+{"w":"からい","m":"cay","kj":"辛い","ex":"からい りょうりが すきです。","exm":"Tôi thích món cay."},
+{"w":"たのしい","m":"vui","kj":"楽しい","ex":"りょこうは たのしかったです。","exm":"Chuyến du lịch rất vui."},
+{"w":"むずかしい","m":"khó","kj":"難しい","ex":"かんじは むずかしいです。","exm":"Kanji khó."},
+{"w":"やさしい","m":"dễ","kj":"易しい","ex":"この もんだいは やさしいです。","exm":"Câu hỏi này dễ."},
+{"w":"やさしい","m":"hiền, tốt bụng","kj":"優しい","ex":"あの ひとは とても やさしいです。","exm":"Người đó rất hiền."},
+{"w":"いい","m":"tốt, được (dạng trang trọng: よい)","ex":"この へやは いいですね。","exm":"Căn phòng này tốt nhỉ."},
+{"w":"わるい","m":"xấu, tệ","kj":"悪い","ex":"てんきが わるいです。","exm":"Thời tiết xấu."},
+{"w":"おもしろい","m":"thú vị, hay","kj":"面白い","ex":"この えいがは おもしろいです。","exm":"Phim này hay."},
+{"w":"つまらない","m":"chán","ex":"この ほんは つまらないです。","exm":"Cuốn sách này chán."},
+{"w":"かわいい","m":"dễ thương","ex":"かわいい いぬですね。","exm":"Con chó dễ thương nhỉ."},
+{"w":"いそがしい","m":"bận","kj":"忙しい","ex":"きょうは いそがしいです。","exm":"Hôm nay tôi bận."},
+{"w":"ひろい","m":"rộng","kj":"広い","ex":"この こうえんは ひろいです。","exm":"Công viên này rộng."},
+{"w":"せまい","m":"chật, hẹp","kj":"狭い","ex":"わたしの へやは せまいです。","exm":"Phòng tôi chật."},
+{"w":"おおい","m":"nhiều","kj":"多い","ex":"この まちは ひとが おおいです。","exm":"Thị trấn này đông người."},
+{"w":"すくない","m":"ít","kj":"少ない","ex":"やすみが すくないです。","exm":"Ngày nghỉ ít."},
+{"w":"つめたい","m":"lạnh (khi chạm vào)","kj":"冷たい","ex":"つめたい みずを ください。","exm":"Cho tôi nước lạnh."},
+{"w":"あつい","m":"nóng (đồ vật, đồ ăn)","kj":"熱い","ex":"この おちゃは あついです。","exm":"Trà này nóng."},
+{"w":"わかい","m":"trẻ","kj":"若い","ex":"あの せんせいは わかいです。","exm":"Thầy giáo kia trẻ."},
+{"w":"つよい","m":"mạnh","kj":"強い","ex":"あの チームは つよいです。","exm":"Đội đó mạnh."},
+{"w":"よわい","m":"yếu, kém","kj":"弱い","ex":"わたしは おさけに よわいです。","exm":"Tôi uống rượu kém."},
+{"w":"きたない","m":"bẩn","kj":"汚い","ex":"へやが きたないです。","exm":"Phòng bẩn."},
+{"w":"ほしい","m":"muốn có","ex":"あたらしい スマホが ほしいです。","exm":"Tôi muốn có điện thoại mới."}
+]},
+{n:17, t:"Từ chỉ định (こ・そ・あ・ど)", v:[
+{"w":"これ","m":"cái này (gần người nói)","ex":"これは わたしの ほんです。","exm":"Đây là sách của tôi."},
+{"w":"それ","m":"cái đó (gần người nghe)","ex":"それは なんですか。","exm":"Đó là cái gì?"},
+{"w":"あれ","m":"cái kia (xa cả hai người)","ex":"あれは ふじさんです。","exm":"Kia là núi Phú Sĩ."},
+{"w":"どれ","m":"cái nào","ex":"あなたの かさは どれですか。","exm":"Ô của bạn là cái nào?"},
+{"w":"この","m":"... này","ex":"この ほんは いくらですか。","exm":"Cuốn sách này bao nhiêu tiền?"},
+{"w":"その","m":"... đó","ex":"その かばんは だれのですか。","exm":"Cái cặp đó của ai?"},
+{"w":"あの","m":"... kia","ex":"あの みせは おいしいです。","exm":"Quán kia ngon."},
+{"w":"どの","m":"... nào","ex":"どの ひとが たなかさんですか。","exm":"Người nào là anh Tanaka?"},
+{"w":"こちら","m":"phía này, đây (lịch sự)","ex":"こちらは やまださんです。","exm":"Đây là anh Yamada."},
+{"w":"そちら","m":"phía đó (lịch sự)","ex":"そちらは いかがですか。","exm":"Bên đó thế nào ạ?"},
+{"w":"あちら","m":"phía kia (lịch sự)","ex":"トイレは あちらです。","exm":"Nhà vệ sinh ở phía kia."},
+{"w":"どちら","m":"phía nào, cái nào (lịch sự)","ex":"コーヒーと こうちゃと どちらが いいですか。","exm":"Cà phê và trà, bạn muốn cái nào?"},
+{"w":"こっち","m":"phía này (thân mật)","ex":"こっちに きて。","exm":"Lại đây."},
+{"w":"そっち","m":"phía đó (thân mật)","ex":"そっちは どう？","exm":"Bên đó sao rồi?"},
+{"w":"あっち","m":"phía kia (thân mật)","ex":"あっちへ いこう。","exm":"Đi về phía kia đi."},
+{"w":"どっち","m":"phía nào, cái nào (thân mật)","ex":"どっちが すき？","exm":"Thích cái nào?"},
+{"w":"こんな","m":"như thế này","ex":"こんな かばんが ほしいです。","exm":"Tôi muốn cái cặp như thế này."},
+{"w":"そんな","m":"như thế đó","ex":"そんな こと、 しりません。","exm":"Chuyện đó tôi không biết."},
+{"w":"あんな","m":"như thế kia","ex":"あんな いえに すみたいです。","exm":"Tôi muốn sống trong ngôi nhà như thế kia."},
+{"w":"どんな","m":"như thế nào","ex":"どんな おんがくが すきですか。","exm":"Bạn thích loại nhạc nào?"}
+]},
+{n:18, t:"Từ để hỏi", v:[
+{"w":"なに","m":"cái gì","kj":"何","ex":"なにを たべますか。","exm":"Bạn ăn gì?"},
+{"w":"なん","m":"cái gì (trước です, khi đếm)","kj":"何","ex":"これは なんですか。","exm":"Cái này là gì?"},
+{"w":"だれ","m":"ai","ex":"だれと いきますか。","exm":"Bạn đi với ai?"},
+{"w":"どなた","m":"ai (lịch sự)","ex":"どなたですか。","exm":"Ai đấy ạ?"},
+{"w":"いつ","m":"khi nào","ex":"いつ にほんへ きましたか。","exm":"Bạn đến Nhật khi nào?"},
+{"w":"どう","m":"thế nào","ex":"にほんは どうですか。","exm":"Nhật Bản thế nào?"},
+{"w":"いかが","m":"thế nào (lịch sự)","ex":"おちゃは いかがですか。","exm":"Anh/chị dùng trà nhé?"},
+{"w":"どうして","m":"tại sao","ex":"どうして おくれましたか。","exm":"Tại sao bạn đến muộn?"},
+{"w":"なぜ","m":"tại sao (trang trọng hơn)","ex":"なぜ にほんごを べんきょうしますか。","exm":"Tại sao bạn học tiếng Nhật?"},
+{"w":"どのくらい","m":"khoảng bao lâu, bao nhiêu","ex":"えきまで どのくらい かかりますか。","exm":"Đến ga mất bao lâu?"},
+{"w":"なんじ","m":"mấy giờ","kj":"何時","ex":"なんじに おきますか。","exm":"Bạn dậy lúc mấy giờ?"},
+{"w":"なんようび","m":"thứ mấy","kj":"何曜日","ex":"きょうは なんようびですか。","exm":"Hôm nay là thứ mấy?"},
+{"w":"なんにち","m":"ngày mấy","kj":"何日","ex":"たんじょうびは なんにちですか。","exm":"Sinh nhật bạn ngày mấy?"},
+{"w":"なんがつ","m":"tháng mấy","kj":"何月","ex":"なつやすみは なんがつからですか。","exm":"Nghỉ hè bắt đầu từ tháng mấy?"},
+{"w":"なんさい","m":"mấy tuổi","kj":"何歳","ex":"なんさいですか。","exm":"Bạn mấy tuổi?"},
+{"w":"おいくつ","m":"bao nhiêu tuổi (lịch sự)","ex":"おこさんは おいくつですか。","exm":"Con anh/chị bao nhiêu tuổi rồi?"},
+{"w":"なんにん","m":"mấy người","kj":"何人","ex":"かぞくは なんにんですか。","exm":"Gia đình bạn có mấy người?"},
+{"w":"なんばん","m":"số mấy","kj":"何番","ex":"でんわばんごうは なんばんですか。","exm":"Số điện thoại của bạn là số mấy?"}
+]},
+{n:19, t:"Tính từ đuôi な", v:[
+{"w":"きれい","m":"đẹp, sạch","ex":"この はなは きれいです。","exm":"Bông hoa này đẹp."},
+{"w":"しずか","m":"yên tĩnh","kj":"静か","ex":"としょかんは しずかです。","exm":"Thư viện yên tĩnh."},
+{"w":"にぎやか","m":"náo nhiệt","ex":"この まちは にぎやかです。","exm":"Thị trấn này náo nhiệt."},
+{"w":"ゆうめい","m":"nổi tiếng","kj":"有名","ex":"この レストランは ゆうめいです。","exm":"Nhà hàng này nổi tiếng."},
+{"w":"しんせつ","m":"tốt bụng, tử tế","kj":"親切","ex":"にほんじんは しんせつです。","exm":"Người Nhật tử tế."},
+{"w":"すき","m":"thích","kj":"好き","ex":"わたしは ねこが すきです。","exm":"Tôi thích mèo."},
+{"w":"きらい","m":"ghét, không thích","kj":"嫌い","ex":"にんじんが きらいです。","exm":"Tôi ghét cà rốt."},
+{"w":"だいすき","m":"rất thích","kj":"大好き","ex":"すしが だいすきです。","exm":"Tôi rất thích sushi."},
+{"w":"だいきらい","m":"rất ghét","kj":"大嫌い","ex":"むしが だいきらいです。","exm":"Tôi rất ghét côn trùng."},
+{"w":"じょうず","m":"giỏi","kj":"上手","ex":"かれは うたが じょうずです。","exm":"Anh ấy hát giỏi."},
+{"w":"へた","m":"kém, dở","kj":"下手","ex":"わたしは りょうりが へたです。","exm":"Tôi nấu ăn dở."},
+{"w":"ひま","m":"rảnh rỗi","kj":"暇","ex":"あしたは ひまですか。","exm":"Mai bạn rảnh không?"},
+{"w":"たいへん","m":"vất vả; rất","kj":"大変","ex":"しごとが たいへんです。","exm":"Công việc vất vả."},
+{"w":"べんり","m":"tiện lợi","kj":"便利","ex":"この アプリは べんりです。","exm":"Ứng dụng này tiện lợi."},
+{"w":"かんたん","m":"đơn giản, dễ","kj":"簡単","ex":"この りょうりは かんたんです。","exm":"Món này đơn giản."},
+{"w":"いろいろ","m":"nhiều loại, đủ thứ","ex":"いろいろな くにへ いきました。","exm":"Tôi đã đi nhiều nước."},
+{"w":"りっぱ","m":"tuyệt vời, nguy nga","kj":"立派","ex":"りっぱな いえですね。","exm":"Ngôi nhà nguy nga nhỉ."},
+{"w":"いや","m":"không thích, khó chịu","kj":"嫌","ex":"あめの ひは いやです。","exm":"Tôi không thích ngày mưa."},
+{"w":"おなじ","m":"giống nhau","kj":"同じ","ex":"わたしと おなじ かばんですね。","exm":"Cái cặp giống của tôi nhỉ."},
+{"w":"ほんとう","m":"thật","kj":"本当","ex":"それは ほんとうですか。","exm":"Điều đó có thật không?"}
+]},
+{n:20, t:"Động từ thường gặp", v:[
+{"w":"ある","ma":"あります","m":"có (đồ vật)","ex":"じかんが ありますか。","exm":"Bạn có thời gian không?"},
+{"w":"いる","ma":"います","m":"có, ở (người, động vật)","ex":"こうえんに こどもが います。","exm":"Ở công viên có trẻ con."},
+{"w":"まつ","ma":"まちます","m":"đợi","kj":"待つ","ex":"ちょっと まって ください。","exm":"Đợi một chút."},
+{"w":"つくる","ma":"つくります","m":"làm, nấu","kj":"作る","ex":"ばんごはんを つくります。","exm":"Tôi nấu bữa tối."},
+{"w":"つかう","ma":"つかいます","m":"sử dụng","kj":"使う","ex":"この ペンを つかっても いいですか。","exm":"Tôi dùng cây bút này được không?"},
+{"w":"すむ","ma":"すみます","m":"sống, cư trú","kj":"住む","ex":"ハノイに すんで います。","exm":"Tôi đang sống ở Hà Nội."},
+{"w":"あける","ma":"あけます","m":"mở","kj":"開ける","ex":"まどを あけて ください。","exm":"Hãy mở cửa sổ."},
+{"w":"しめる","ma":"しめます","m":"đóng","kj":"閉める","ex":"ドアを しめます。","exm":"Tôi đóng cửa."},
+{"w":"おしえる","ma":"おしえます","m":"dạy, chỉ","kj":"教える","ex":"みちを おしえて ください。","exm":"Hãy chỉ đường cho tôi."},
+{"w":"ならう","ma":"ならいます","m":"học (từ ai đó)","kj":"習う","ex":"せんせいに にほんごを ならいます。","exm":"Tôi học tiếng Nhật với thầy."},
+{"w":"すわる","ma":"すわります","m":"ngồi","kj":"座る","ex":"ここに すわって ください。","exm":"Hãy ngồi đây."},
+{"w":"たつ","ma":"たちます","m":"đứng","kj":"立つ","ex":"たって ください。","exm":"Hãy đứng lên."},
+{"w":"はいる","ma":"はいります","m":"đi vào","kj":"入る","ex":"へやに はいります。","exm":"Tôi vào phòng."},
+{"w":"でる","ma":"でます","m":"đi ra, rời","kj":"出る","ex":"はちじに うちを でます。","exm":"8 giờ tôi rời nhà."},
+{"w":"のる","ma":"のります","m":"lên (xe), đi (tàu xe)","kj":"乗る","ex":"でんしゃに のります。","exm":"Tôi lên tàu điện."},
+{"w":"おりる","ma":"おります","m":"xuống (xe)","kj":"降りる","ex":"つぎの えきで おります。","exm":"Tôi xuống ở ga tiếp theo."},
+{"w":"とる","ma":"とります","m":"lấy (chụp ảnh viết là 撮る)","kj":"取る","ex":"しおを とって ください。","exm":"Đưa giúp tôi lọ muối."},
+{"w":"あらう","ma":"あらいます","m":"rửa","kj":"洗う","ex":"てを あらいます。","exm":"Tôi rửa tay."},
+{"w":"きる","ma":"きます","m":"mặc (áo)","kj":"着る","ex":"コートを きます。","exm":"Tôi mặc áo khoác."},
+{"w":"きる","ma":"きります","m":"cắt","kj":"切る","ex":"はさみで かみを きります。","exm":"Tôi cắt giấy bằng kéo."},
+{"w":"はく","ma":"はきます","m":"mặc (quần, váy), đi (giày)","ex":"くつを はきます。","exm":"Tôi đi giày."},
+{"w":"かぶる","ma":"かぶります","m":"đội (mũ)","ex":"あつい ひは ぼうしを かぶって ください。","exm":"Ngày nóng hãy đội mũ."},
+{"w":"ぬぐ","ma":"ぬぎます","m":"cởi","kj":"脱ぐ","ex":"くつを ぬいで ください。","exm":"Hãy cởi giày."},
+{"w":"かける","ma":"かけます","m":"gọi (điện), đeo (kính)","ex":"ともだちに でんわを かけます。","exm":"Tôi gọi điện cho bạn."},
+{"w":"かす","ma":"かします","m":"cho mượn","kj":"貸す","ex":"ほんを かして ください。","exm":"Cho tôi mượn sách."},
+{"w":"かりる","ma":"かります","m":"mượn","kj":"借りる","ex":"ともだちに かさを かりました。","exm":"Tôi đã mượn ô của bạn."},
+{"w":"かえす","ma":"かえします","m":"trả lại","kj":"返す","ex":"ほんを かえします。","exm":"Tôi trả sách."},
+{"w":"もつ","ma":"もちます","m":"cầm, mang","kj":"持つ","ex":"にもつを もちましょうか。","exm":"Để tôi cầm hành lý giúp nhé?"},
+{"w":"もらう","ma":"もらいます","m":"nhận","ex":"ともだちに プレゼントを もらいました。","exm":"Tôi nhận quà từ bạn."},
+{"w":"あげる","ma":"あげます","m":"cho, tặng","ex":"いもうとに おかしを あげます。","exm":"Tôi cho em gái bánh kẹo."},
+{"w":"いう","ma":"いいます","m":"nói","kj":"言う","ex":"もう いちど いって ください。","exm":"Hãy nói lại một lần nữa."},
+{"w":"よぶ","ma":"よびます","m":"gọi","kj":"呼ぶ","ex":"タクシーを よびます。","exm":"Tôi gọi taxi."},
+{"w":"はじまる","ma":"はじまります","m":"bắt đầu","kj":"始まる","ex":"じゅぎょうは くじに はじまります。","exm":"Giờ học bắt đầu lúc 9 giờ."},
+{"w":"おわる","ma":"おわります","m":"kết thúc","kj":"終わる","ex":"しごとは ごじに おわります。","exm":"Công việc kết thúc lúc 5 giờ."},
+{"w":"ひく","ma":"ひきます","m":"chơi (đàn)","kj":"弾く","ex":"ピアノを ひきます。","exm":"Tôi chơi piano."},
+{"w":"ふる","ma":"ふります","m":"rơi (mưa, tuyết)","kj":"降る","ex":"ゆきが たくさん ふりました。","exm":"Tuyết đã rơi nhiều."},
+{"w":"さく","ma":"さきます","m":"nở (hoa)","kj":"咲く","ex":"はなが さきました。","exm":"Hoa đã nở."},
+{"w":"わすれる","ma":"わすれます","m":"quên","kj":"忘れる","ex":"しゅくだいを わすれました。","exm":"Tôi quên bài tập."},
+{"w":"おぼえる","ma":"おぼえます","m":"nhớ, học thuộc","kj":"覚える","ex":"かんじを おぼえます。","exm":"Tôi học thuộc kanji."},
+{"w":"こたえる","ma":"こたえます","m":"trả lời","kj":"答える","ex":"しつもんに こたえて ください。","exm":"Hãy trả lời câu hỏi."},
+{"w":"つける","ma":"つけます","m":"bật","ex":"でんきを つけます。","exm":"Tôi bật đèn."},
+{"w":"けす","ma":"けします","m":"tắt, xóa","kj":"消す","ex":"テレビを けして ください。","exm":"Hãy tắt ti vi."},
+{"w":"はしる","ma":"はしります","m":"chạy","kj":"走る","ex":"まいあさ こうえんを はしります。","exm":"Sáng nào tôi cũng chạy ở công viên."},
+{"w":"とぶ","ma":"とびます","m":"bay","kj":"飛ぶ","ex":"とりが そらを とんで います。","exm":"Chim đang bay trên trời."},
+{"w":"あびる","ma":"あびます","m":"tắm (vòi sen)","kj":"浴びる","ex":"シャワーを あびます。","exm":"Tôi tắm vòi sen."},
+{"w":"みがく","ma":"みがきます","m":"đánh (răng), đánh bóng","kj":"磨く","ex":"はを みがきます。","exm":"Tôi đánh răng."},
+{"w":"すう","ma":"すいます","m":"hút (thuốc)","kj":"吸う","ex":"たばこを すいますか。","exm":"Bạn có hút thuốc không?"},
+{"w":"まがる","ma":"まがります","m":"rẽ","kj":"曲がる","ex":"かどを ひだりへ まがります。","exm":"Rẽ trái ở góc đường."},
+{"w":"わたる","ma":"わたります","m":"băng qua","kj":"渡る","ex":"みちを わたります。","exm":"Tôi băng qua đường."},
+{"w":"つかれる","ma":"つかれます","m":"mệt","kj":"疲れる","ex":"きょうは つかれました。","exm":"Hôm nay tôi mệt."},
+{"w":"こまる","ma":"こまります","m":"gặp khó khăn, bối rối","kj":"困る","ex":"おかねが なくて こまって います。","exm":"Tôi đang khó khăn vì không có tiền."},
+{"w":"いれる","ma":"いれます","m":"cho vào","kj":"入れる","ex":"かばんに ほんを いれます。","exm":"Tôi cho sách vào cặp."},
+{"w":"だす","ma":"だします","m":"lấy ra, gửi","kj":"出す","ex":"てがみを だします。","exm":"Tôi gửi thư."},
+{"w":"おく","ma":"おきます","m":"đặt, để","kj":"置く","ex":"にもつを ここに おいて ください。","exm":"Hãy đặt hành lý ở đây."},
+{"w":"ならべる","ma":"ならべます","m":"xếp, bày ra","kj":"並べる","ex":"いすを ならべます。","exm":"Tôi xếp ghế."},
+{"w":"なる","ma":"なります","m":"trở thành","ex":"いしゃに なりたいです。","exm":"Tôi muốn trở thành bác sĩ."},
+{"w":"うる","ma":"うります","m":"bán","kj":"売る","ex":"この みせは やさいを うって います。","exm":"Cửa hàng này bán rau."},
+{"w":"しる","ma":"しります","m":"biết","kj":"知る","ex":"かれの でんわばんごうを しって いますか。","exm":"Bạn có biết số điện thoại của anh ấy không?"},
+{"w":"しぬ","ma":"しにます","m":"chết","kj":"死ぬ","ex":"ペットの いぬが しにました。","exm":"Con chó cưng đã chết."},
+{"w":"けっこんする","ma":"けっこんします","m":"kết hôn","kj":"結婚する","ex":"らいねん けっこんします。","exm":"Năm sau tôi kết hôn."},
+{"w":"かいものする","ma":"かいものします","m":"mua sắm","kj":"買い物する","ex":"デパートで かいものします。","exm":"Tôi mua sắm ở trung tâm bách hóa."},
+{"w":"そうじする","ma":"そうじします","m":"dọn dẹp","kj":"掃除する","ex":"にちようびに へやを そうじします。","exm":"Chủ nhật tôi dọn phòng."},
+{"w":"せんたくする","ma":"せんたくします","m":"giặt giũ","kj":"洗濯する","ex":"まいにち せんたくします。","exm":"Ngày nào tôi cũng giặt đồ."},
+{"w":"さんぽする","ma":"さんぽします","m":"đi dạo","kj":"散歩する","ex":"いぬと さんぽします。","exm":"Tôi đi dạo với chó."}
+]},
+{n:21, t:"Phó từ, từ nối", v:[
+{"w":"とても","m":"rất","ex":"この ケーキは とても おいしいです。","exm":"Bánh này rất ngon."},
+{"w":"すこし","m":"một chút","kj":"少し","ex":"すこし まって ください。","exm":"Đợi một chút."},
+{"w":"ちょっと","m":"một chút (thân mật)","ex":"ちょっと いいですか。","exm":"Cho tôi hỏi chút được không?"},
+{"w":"たくさん","m":"nhiều","ex":"ほんが たくさん あります。","exm":"Có nhiều sách."},
+{"w":"よく","m":"thường, hay; tốt","ex":"よく こうえんへ いきます。","exm":"Tôi hay đi công viên."},
+{"w":"いつも","m":"luôn luôn","ex":"いつも バスで いきます。","exm":"Tôi luôn đi bằng xe buýt."},
+{"w":"ときどき","m":"thỉnh thoảng","kj":"時々","ex":"ときどき りょうりを します。","exm":"Thỉnh thoảng tôi nấu ăn."},
+{"w":"たいてい","m":"thường thì, phần lớn","ex":"にちようびは たいてい うちに います。","exm":"Chủ nhật tôi thường ở nhà."},
+{"w":"あまり","m":"không ... lắm (đi với phủ định)","ex":"あまり たべません。","exm":"Tôi không ăn mấy."},
+{"w":"ぜんぜん","m":"hoàn toàn không (đi với phủ định)","kj":"全然","ex":"ぜんぜん わかりません。","exm":"Tôi hoàn toàn không hiểu."},
+{"w":"もう","m":"đã, rồi","ex":"もう ひるごはんを たべました。","exm":"Tôi đã ăn trưa rồi."},
+{"w":"まだ","m":"vẫn, chưa","ex":"まだ たべて いません。","exm":"Tôi vẫn chưa ăn."},
+{"w":"すぐ","m":"ngay lập tức","ex":"すぐ いきます。","exm":"Tôi đi ngay."},
+{"w":"また","m":"lại","ex":"また きて ください。","exm":"Hãy lại đến nhé."},
+{"w":"もっと","m":"hơn nữa","ex":"もっと ゆっくり はなして ください。","exm":"Hãy nói chậm hơn nữa."},
+{"w":"いちばん","m":"nhất","kj":"一番","ex":"いちばん すきな たべものは すしです。","exm":"Món tôi thích nhất là sushi."},
+{"w":"ゆっくり","m":"chậm rãi, thong thả","ex":"ゆっくり やすんで ください。","exm":"Hãy nghỉ ngơi thong thả."},
+{"w":"いっしょに","m":"cùng nhau","kj":"一緒に","ex":"いっしょに いきませんか。","exm":"Đi cùng nhau không?"},
+{"w":"ひとりで","m":"một mình","kj":"一人で","ex":"ひとりで りょうりを つくりました。","exm":"Tôi tự nấu ăn một mình."},
+{"w":"ぜんぶ","m":"toàn bộ","kj":"全部","ex":"ぜんぶで いくらですか。","exm":"Tổng cộng bao nhiêu tiền?"},
+{"w":"はじめて","m":"lần đầu","kj":"初めて","ex":"はじめて にほんへ きました。","exm":"Lần đầu tôi đến Nhật."},
+{"w":"だんだん","m":"dần dần","ex":"だんだん さむく なりました。","exm":"Trời dần lạnh hơn."},
+{"w":"ちょうど","m":"vừa đúng","ex":"ちょうど じゅうじです。","exm":"Đúng 10 giờ."},
+{"w":"たぶん","m":"có lẽ","ex":"あしたは たぶん あめです。","exm":"Mai có lẽ mưa."},
+{"w":"ほんとうに","m":"thật sự","kj":"本当に","ex":"ほんとうに ありがとう。","exm":"Thật sự cảm ơn bạn."},
+{"w":"そして","m":"và, rồi thì","ex":"あさ おきました。 そして シャワーを あびました。","exm":"Tôi dậy. Rồi tắm vòi sen."},
+{"w":"それから","m":"sau đó","ex":"ごはんを たべます。 それから しゅくだいを します。","exm":"Tôi ăn cơm. Sau đó làm bài tập."},
+{"w":"でも","m":"nhưng","ex":"にほんごは むずかしいです。 でも おもしろいです。","exm":"Tiếng Nhật khó. Nhưng thú vị."},
+{"w":"しかし","m":"tuy nhiên (văn viết)","ex":"たかいです。 しかし、 べんりです。","exm":"Đắt. Tuy nhiên tiện lợi."},
+{"w":"じゃあ","m":"vậy thì","ex":"じゃあ、 いきましょう。","exm":"Vậy thì đi thôi."}
+]},
+{n:22, t:"Trợ số từ", v:[
+{"w":"〜まい","m":"tờ, cái (vật mỏng, phẳng)","kj":"〜枚","ex":"かみを にまい ください。","exm":"Cho tôi 2 tờ giấy."},
+{"w":"〜ほん","m":"cây, chai (vật dài; còn đọc ぼん, ぽん)","kj":"〜本","ex":"ペンが さんぼん あります。","exm":"Có 3 cây bút."},
+{"w":"〜さつ","m":"cuốn (sách, vở)","kj":"〜冊","ex":"ほんを にさつ かいました。","exm":"Tôi mua 2 cuốn sách."},
+{"w":"〜だい","m":"chiếc (máy móc, xe)","kj":"〜台","ex":"くるまが いちだい あります。","exm":"Có 1 chiếc ô tô."},
+{"w":"〜ひき","m":"con (động vật nhỏ; còn đọc びき, ぴき)","kj":"〜匹","ex":"ねこが にひき います。","exm":"Có 2 con mèo."},
+{"w":"〜はい","m":"cốc, bát (còn đọc ばい, ぱい)","kj":"〜杯","ex":"コーヒーを いっぱい のみます。","exm":"Tôi uống 1 cốc cà phê."},
+{"w":"〜こ","m":"cái, quả (vật nhỏ)","kj":"〜個","ex":"りんごを ごこ かいました。","exm":"Tôi mua 5 quả táo."},
+{"w":"〜にん","m":"người","kj":"〜人","ex":"がくせいが さんにん います。","exm":"Có 3 học sinh."},
+{"w":"〜さい","m":"tuổi","kj":"〜歳","ex":"むすこは ななさいです。","exm":"Con trai tôi 7 tuổi."},
+{"w":"〜えん","m":"yên (tiền Nhật)","kj":"〜円","ex":"この ペンは ひゃくえんです。","exm":"Cây bút này 100 yên."},
+{"w":"〜かい","m":"lần","kj":"〜回","ex":"いちにちに さんかい たべます。","exm":"Tôi ăn 3 lần một ngày."},
+{"w":"〜かい","m":"tầng (còn đọc がい)","kj":"〜階","ex":"トイレは にかいです。","exm":"Nhà vệ sinh ở tầng 2."},
+{"w":"〜ばん","m":"số (thứ tự)","kj":"〜番","ex":"いちばんの バスに のります。","exm":"Tôi đi xe buýt số 1."},
+{"w":"〜じかん","m":"tiếng (giờ đồng hồ)","kj":"〜時間","ex":"まいにち にじかん べんきょうします。","exm":"Mỗi ngày tôi học 2 tiếng."},
+{"w":"〜しゅうかん","m":"tuần (số tuần)","kj":"〜週間","ex":"いっしゅうかん やすみます。","exm":"Tôi nghỉ 1 tuần."},
+{"w":"〜かげつ","m":"tháng (số tháng)","kj":"〜か月","ex":"さんかげつ にほんに いました。","exm":"Tôi đã ở Nhật 3 tháng."},
+{"w":"〜ねん","m":"năm","kj":"〜年","ex":"にねん にほんごを べんきょうしました。","exm":"Tôi đã học tiếng Nhật 2 năm."},
+{"w":"〜ど","m":"độ (nhiệt độ)","kj":"〜度","ex":"きょうは さんじゅうどです。","exm":"Hôm nay 30 độ."}
+]},
+{n:23, t:"Ngày, tuần, tháng, năm", v:[
+{"w":"おととい","m":"hôm kia","ex":"おととい ここへ きました。","exm":"Hôm kia tôi đã đến đây."},
+{"w":"あさって","m":"ngày kia","ex":"あさって テストが あります。","exm":"Ngày kia có bài kiểm tra."},
+{"w":"けさ","m":"sáng nay","kj":"今朝","ex":"けさ パンを たべました。","exm":"Sáng nay tôi ăn bánh mì."},
+{"w":"こんばん","m":"tối nay","kj":"今晩","ex":"こんばん ひまですか。","exm":"Tối nay bạn rảnh không?"},
+{"w":"こんや","m":"đêm nay","kj":"今夜","ex":"こんやは さむいです。","exm":"Đêm nay lạnh."},
+{"w":"ゆうべ","m":"tối qua","ex":"ゆうべ よく ねました。","exm":"Tối qua tôi ngủ ngon."},
+{"w":"ゆうがた","m":"chiều tối","kj":"夕方","ex":"ゆうがた かえります。","exm":"Chiều tối tôi về."},
+{"w":"せんしゅう","m":"tuần trước","kj":"先週","ex":"せんしゅう きょうとへ いきました。","exm":"Tuần trước tôi đã đi Kyoto."},
+{"w":"こんしゅう","m":"tuần này","kj":"今週","ex":"こんしゅうは いそがしいです。","exm":"Tuần này tôi bận."},
+{"w":"まいしゅう","m":"mỗi tuần","kj":"毎週","ex":"まいしゅう テニスを します。","exm":"Tuần nào tôi cũng chơi tennis."},
+{"w":"せんげつ","m":"tháng trước","kj":"先月","ex":"せんげつ ひっこしました。","exm":"Tháng trước tôi chuyển nhà."},
+{"w":"こんげつ","m":"tháng này","kj":"今月","ex":"こんげつは やすみが おおいです。","exm":"Tháng này nhiều ngày nghỉ."},
+{"w":"まいつき","m":"mỗi tháng","kj":"毎月","ex":"まいつき かぞくに でんわします。","exm":"Tháng nào tôi cũng gọi điện cho gia đình."},
+{"w":"きょねん","m":"năm ngoái","kj":"去年","ex":"きょねん にほんへ きました。","exm":"Năm ngoái tôi đến Nhật."},
+{"w":"らいねん","m":"năm sau","kj":"来年","ex":"らいねん だいがくに はいります。","exm":"Năm sau tôi vào đại học."},
+{"w":"まいとし","m":"mỗi năm","kj":"毎年","ex":"まいとし さくらを みに いきます。","exm":"Năm nào tôi cũng đi ngắm hoa anh đào."},
+{"w":"まいあさ","m":"mỗi sáng","kj":"毎朝","ex":"まいあさ コーヒーを のみます。","exm":"Sáng nào tôi cũng uống cà phê."},
+{"w":"まいばん","m":"mỗi tối","kj":"毎晩","ex":"まいばん にっきを かきます。","exm":"Tối nào tôi cũng viết nhật ký."},
+{"w":"ついたち","m":"ngày 1 (trong tháng)","kj":"一日","ex":"しがつ ついたちから がっこうです。","exm":"Từ ngày 1 tháng 4 là đi học."},
+{"w":"ふつか","m":"ngày 2; 2 ngày","kj":"二日","ex":"ふつか やすみました。","exm":"Tôi đã nghỉ 2 ngày."},
+{"w":"みっか","m":"ngày 3; 3 ngày","kj":"三日","ex":"みっかに あいましょう。","exm":"Gặp nhau ngày 3 nhé."},
+{"w":"よっか","m":"ngày 4; 4 ngày","kj":"四日","ex":"よっかは にちようびです。","exm":"Ngày 4 là chủ nhật."},
+{"w":"いつか","m":"ngày 5; 5 ngày","kj":"五日","ex":"ごがつ いつかは こどもの ひです。","exm":"Ngày 5 tháng 5 là ngày Thiếu nhi."},
+{"w":"むいか","m":"ngày 6; 6 ngày","kj":"六日","ex":"むいかに かえります。","exm":"Ngày 6 tôi về."},
+{"w":"なのか","m":"ngày 7; 7 ngày","kj":"七日","ex":"なのかかん りょこうします。","exm":"Tôi đi du lịch 7 ngày."},
+{"w":"ようか","m":"ngày 8; 8 ngày","kj":"八日","ex":"ようかに テストが あります。","exm":"Ngày 8 có bài kiểm tra."},
+{"w":"ここのか","m":"ngày 9; 9 ngày","kj":"九日","ex":"ここのかは かようびです。","exm":"Ngày 9 là thứ Ba."},
+{"w":"とおか","m":"ngày 10; 10 ngày","kj":"十日","ex":"とおかに きゅうりょうを もらいます。","exm":"Ngày 10 tôi nhận lương."},
+{"w":"はつか","m":"ngày 20; 20 ngày","kj":"二十日","ex":"はつかは わたしの たんじょうびです。","exm":"Ngày 20 là sinh nhật tôi."},
+{"w":"いちがつ","m":"tháng 1","kj":"一月","ex":"いちがつは さむいです。","exm":"Tháng 1 lạnh."},
+{"w":"にがつ","m":"tháng 2","kj":"二月","ex":"にがつに ゆきが ふります。","exm":"Tháng 2 tuyết rơi."},
+{"w":"さんがつ","m":"tháng 3","kj":"三月","ex":"さんがつに そつぎょうします。","exm":"Tháng 3 tôi tốt nghiệp."},
+{"w":"しがつ","m":"tháng 4 (không đọc よんがつ)","kj":"四月","ex":"しがつに さくらが さきます。","exm":"Tháng 4 hoa anh đào nở."},
+{"w":"ごがつ","m":"tháng 5","kj":"五月","ex":"ごがつは てんきが いいです。","exm":"Tháng 5 trời đẹp."},
+{"w":"ろくがつ","m":"tháng 6","kj":"六月","ex":"ろくがつは あめが おおいです。","exm":"Tháng 6 mưa nhiều."},
+{"w":"しちがつ","m":"tháng 7 (không đọc なながつ)","kj":"七月","ex":"しちがつから なつやすみです。","exm":"Từ tháng 7 là nghỉ hè."},
+{"w":"はちがつ","m":"tháng 8","kj":"八月","ex":"はちがつは とても あついです。","exm":"Tháng 8 rất nóng."},
+{"w":"くがつ","m":"tháng 9 (không đọc きゅうがつ)","kj":"九月","ex":"くがつに がっこうが はじまります。","exm":"Tháng 9 trường học bắt đầu."},
+{"w":"じゅうがつ","m":"tháng 10","kj":"十月","ex":"じゅうがつは すずしいです。","exm":"Tháng 10 mát mẻ."},
+{"w":"じゅういちがつ","m":"tháng 11","kj":"十一月","ex":"じゅういちがつに りょこうします。","exm":"Tháng 11 tôi đi du lịch."},
+{"w":"じゅうにがつ","m":"tháng 12","kj":"十二月","ex":"じゅうにがつは いそがしいです。","exm":"Tháng 12 bận rộn."},
+{"w":"たんじょうび","m":"sinh nhật","kj":"誕生日","ex":"たんじょうびに なにが ほしいですか。","exm":"Sinh nhật bạn muốn quà gì?"},
+{"w":"やすみ","m":"ngày nghỉ, kỳ nghỉ","kj":"休み","ex":"あしたは やすみです。","exm":"Ngày mai được nghỉ."},
+{"w":"なつやすみ","m":"nghỉ hè","kj":"夏休み","ex":"なつやすみは なにを しますか。","exm":"Nghỉ hè bạn làm gì?"},
+{"w":"じかん","m":"thời gian","kj":"時間","ex":"いそがしくて じかんが ありません。","exm":"Bận quá nên không có thời gian."},
+{"w":"まえ","m":"trước (thời gian)","kj":"前","ex":"ごはんの まえに てを あらいます。","exm":"Tôi rửa tay trước khi ăn."},
+{"w":"あと","m":"sau (thời gian)","kj":"後","ex":"しごとの あとで のみに いきます。","exm":"Sau giờ làm tôi đi nhậu."},
+{"w":"ひ","m":"ngày","kj":"日","ex":"その ひは ひまです。","exm":"Hôm đó tôi rảnh."}
+]},
+{n:24, t:"Vị trí, phương hướng", v:[
+{"w":"うえ","m":"trên","kj":"上","ex":"やまの うえは さむいです。","exm":"Trên núi lạnh."},
+{"w":"した","m":"dưới","kj":"下","ex":"いすの したに ねこが います。","exm":"Dưới ghế có con mèo."},
+{"w":"なか","m":"trong","kj":"中","ex":"かばんの なかに なにが ありますか。","exm":"Trong cặp có gì?"},
+{"w":"そと","m":"ngoài","kj":"外","ex":"そとで あそびましょう。","exm":"Ra ngoài chơi nào."},
+{"w":"まえ","m":"phía trước","kj":"前","ex":"えきの まえで まちます。","exm":"Tôi đợi trước ga."},
+{"w":"うしろ","m":"phía sau","kj":"後ろ","ex":"わたしの うしろに だれが いますか。","exm":"Ai đứng sau tôi vậy?"},
+{"w":"よこ","m":"bên cạnh (ngang)","kj":"横","ex":"ベッドの よこに つくえが あります。","exm":"Bên cạnh giường có bàn."},
+{"w":"となり","m":"bên cạnh (sát vách)","kj":"隣","ex":"となりの ひとは しんせつです。","exm":"Người bên cạnh tốt bụng."},
+{"w":"ちかく","m":"gần, vùng lân cận","kj":"近く","ex":"ちかくに コンビニが ありますか。","exm":"Gần đây có cửa hàng tiện lợi không?"},
+{"w":"あいだ","m":"giữa","kj":"間","ex":"ぎんこうと びょういんの あいだに あります。","exm":"Nó nằm giữa ngân hàng và bệnh viện."},
+{"w":"むこう","m":"phía bên kia","kj":"向こう","ex":"かわの むこうに やまが あります。","exm":"Bên kia sông có núi."},
+{"w":"ひがし","m":"phía đông","kj":"東","ex":"ひがしの そらが あかるいです。","exm":"Bầu trời phía đông sáng."},
+{"w":"にし","m":"phía tây","kj":"西","ex":"たいようは にしに しずみます。","exm":"Mặt trời lặn ở phía tây."},
+{"w":"みなみ","m":"phía nam","kj":"南","ex":"ベトナムの みなみは あついです。","exm":"Miền Nam Việt Nam nóng."},
+{"w":"きた","m":"phía bắc","kj":"北","ex":"ハノイは ベトナムの きたに あります。","exm":"Hà Nội ở phía bắc Việt Nam."}
+]},
+{n:25, t:"Trường học, công việc", v:[
+{"w":"きょうしつ","m":"lớp học, phòng học","kj":"教室","ex":"きょうしつに がくせいが います。","exm":"Trong lớp có học sinh."},
+{"w":"じゅぎょう","m":"giờ học, tiết học","kj":"授業","ex":"じゅぎょうは なんじからですか。","exm":"Giờ học bắt đầu từ mấy giờ?"},
+{"w":"しゅくだい","m":"bài tập về nhà","kj":"宿題","ex":"しゅくだいは もう おわりました。","exm":"Bài tập về nhà đã xong rồi."},
+{"w":"テスト","m":"bài kiểm tra","ex":"あしたは テストです。","exm":"Ngày mai có kiểm tra."},
+{"w":"しけん","m":"kỳ thi","kj":"試験","ex":"にほんごの しけんを うけます。","exm":"Tôi dự thi tiếng Nhật."},
+{"w":"もんだい","m":"câu hỏi (bài thi), vấn đề","kj":"問題","ex":"この もんだいは むずかしいです。","exm":"Câu này khó."},
+{"w":"しつもん","m":"câu hỏi","kj":"質問","ex":"しつもんが あります。","exm":"Tôi có câu hỏi."},
+{"w":"こたえ","m":"câu trả lời","kj":"答え","ex":"こたえを かいて ください。","exm":"Hãy viết câu trả lời."},
+{"w":"いみ","m":"ý nghĩa","kj":"意味","ex":"この ことばの いみは なんですか。","exm":"Từ này có nghĩa là gì?"},
+{"w":"ことば","m":"từ ngữ","kj":"言葉","ex":"あたらしい ことばを おぼえます。","exm":"Tôi học thuộc từ mới."},
+{"w":"にほんご","m":"tiếng Nhật","kj":"日本語","ex":"にほんごが すこし わかります。","exm":"Tôi hiểu một chút tiếng Nhật."},
+{"w":"えいご","m":"tiếng Anh","kj":"英語","ex":"えいごを はなせますか。","exm":"Bạn nói được tiếng Anh không?"},
+{"w":"かんじ","m":"chữ Hán","kj":"漢字","ex":"かんじを まいにち れんしゅうします。","exm":"Ngày nào tôi cũng luyện kanji."},
+{"w":"ひらがな","m":"chữ Hiragana","ex":"ひらがなで かいて ください。","exm":"Hãy viết bằng Hiragana."},
+{"w":"カタカナ","m":"chữ Katakana","ex":"カタカナは すこし むずかしいです。","exm":"Katakana hơi khó."},
+{"w":"れんしゅう","m":"luyện tập","kj":"練習","ex":"はつおんを れんしゅうします。","exm":"Tôi luyện phát âm."},
+{"w":"クラス","m":"lớp","ex":"クラスに がくせいが にじゅうにん います。","exm":"Lớp có 20 học sinh."},
+{"w":"りゅうがくせい","m":"du học sinh","kj":"留学生","ex":"わたしは りゅうがくせいです。","exm":"Tôi là du học sinh."},
+{"w":"しごと","m":"công việc","kj":"仕事","ex":"おしごとは なんですか。","exm":"Bạn làm nghề gì?"},
+{"w":"かいしゃいん","m":"nhân viên công ty","kj":"会社員","ex":"ちちは かいしゃいんです。","exm":"Bố tôi là nhân viên công ty."},
+{"w":"いしゃ","m":"bác sĩ","kj":"医者","ex":"いしゃに みて もらいました。","exm":"Tôi đã được bác sĩ khám."},
+{"w":"けいさつかん","m":"cảnh sát","kj":"警察官","ex":"けいさつかんに みちを ききました。","exm":"Tôi đã hỏi đường cảnh sát."},
+{"w":"てんいん","m":"nhân viên cửa hàng","kj":"店員","ex":"てんいんさんは しんせつです。","exm":"Nhân viên cửa hàng tử tế."},
+{"w":"ぎんこういん","m":"nhân viên ngân hàng","kj":"銀行員","ex":"ぎんこういんに なりたいです。","exm":"Tôi muốn làm nhân viên ngân hàng."}
+]},
+{n:26, t:"Mua sắm, sở thích", v:[
+{"w":"かいもの","m":"việc mua sắm","kj":"買い物","ex":"かいものに いきます。","exm":"Tôi đi mua sắm."},
+{"w":"しゅみ","m":"sở thích","kj":"趣味","ex":"しゅみは なんですか。","exm":"Sở thích của bạn là gì?"},
+{"w":"スポーツ","m":"thể thao","ex":"スポーツを みるのが すきです。","exm":"Tôi thích xem thể thao."},
+{"w":"サッカー","m":"bóng đá","ex":"ともだちと サッカーを します。","exm":"Tôi chơi bóng đá với bạn."},
+{"w":"テニス","m":"quần vợt","ex":"テニスが じょうずですね。","exm":"Bạn chơi tennis giỏi nhỉ."},
+{"w":"やきゅう","m":"bóng chày","kj":"野球","ex":"にほんでは やきゅうが にんきです。","exm":"Ở Nhật bóng chày được yêu thích."},
+{"w":"おんがく","m":"âm nhạc","kj":"音楽","ex":"クラシックの おんがくが すきです。","exm":"Tôi thích nhạc cổ điển."},
+{"w":"うた","m":"bài hát","kj":"歌","ex":"この うたを しって いますか。","exm":"Bạn biết bài hát này không?"},
+{"w":"えいが","m":"phim","kj":"映画","ex":"えいがを みに いきませんか。","exm":"Đi xem phim không?"},
+{"w":"ゲーム","m":"trò chơi, game","ex":"おとうとは ゲームが すきです。","exm":"Em trai tôi thích game."},
+{"w":"ピアノ","m":"đàn piano","ex":"ピアノを ならって います。","exm":"Tôi đang học piano."},
+{"w":"ギター","m":"đàn ghi-ta","ex":"ギターが ひけますか。","exm":"Bạn chơi được ghi-ta không?"},
+{"w":"え","m":"bức tranh","kj":"絵","ex":"えを かくのが すきです。","exm":"Tôi thích vẽ tranh."},
+{"w":"カラオケ","m":"karaoke","ex":"しゅうまつ カラオケへ いきます。","exm":"Cuối tuần tôi đi karaoke."},
+{"w":"プレゼント","m":"quà tặng","ex":"ははに プレゼントを かいました。","exm":"Tôi đã mua quà cho mẹ."},
+{"w":"おみやげ","m":"quà lưu niệm","kj":"お土産","ex":"これは ベトナムの おみやげです。","exm":"Đây là quà từ Việt Nam."},
+{"w":"パーティー","m":"bữa tiệc","ex":"あした パーティーが あります。","exm":"Mai có tiệc."},
+{"w":"ねだん","m":"giá cả","kj":"値段","ex":"この くつの ねだんは いくらですか。","exm":"Đôi giày này giá bao nhiêu?"}
+]},
 ];
 TOPICS.forEach(T => {
-  T.words = T.v.map(s => {
-    const [w, m, kj, ro] = s.split('|');
-    return {w, r:w, m, kj:kj || '', ro:ro || toRomaji(w), key:`v${T.n}:${w}`, sc:/^[ァ-ヶー]+$/.test(w) ? 'kata' : 'hira'};
-  });
+  T.words = T.v.map(o => ({
+    w:o.w, r:o.w, masu:o.ma || '', m:o.m, kj:o.kj || '', ex:o.ex, exm:o.exm, ro:o.ro || toRomaji(o.w),
+    key:`w:${T.n}:${o.w}:${o.kj || ''}`, sc:/^[ァ-ヶー]+$/.test(o.w) ? 'kata' : 'hira',
+    n5:!!o.kj && Array.from(o.kj).filter(isHan).every(c => N5K.includes(c))
+  }));
 });
 const ALLVOCAB = TOPICS.flatMap(T => T.words);
-const speakJa = t => speak(t.split('／')[0].replace(/[～？?]/g, ''));
+const speakJa = t => speak(t.split('／')[0].replace(/[～〜？?]/g, ''));
 
 /* ---------- Speech ---------- */
+/* Giọng thật (tuỳ chọn): đặt file mp3 vào thư mục audio/ (tên file = chữ hoặc từ, vd. あ.mp3, おはよう.mp3)
+   rồi chạy tao-manifest-am-thanh.py để tạo audio/manifest.json. Chữ nào chưa có file sẽ dùng giọng đọc của máy. */
+let CLIPS = new Set(), curAudio = null;
+if (location.protocol !== 'file:') try { fetch('audio/manifest.json').then(r => r.ok ? r.json() : []).then(a => { if (Array.isArray(a)) { CLIPS = new Set(a); updateVoiceSlots(); } }).catch(() => {}); } catch (e) {}
 let jaVoice = null, voicesChecked = false;
 const hasSpeech = 'speechSynthesis' in window;
 function loadVoices(){
@@ -492,6 +1235,18 @@ if (hasSpeech) {
   setTimeout(() => { voicesChecked = true; loadVoices(); }, 2500);
 }
 function speak(text){
+  try { if (curAudio) { curAudio.pause(); curAudio = null; } } catch (e) {}
+  if (CLIPS.has(text)) {
+    try {
+      if (hasSpeech) speechSynthesis.cancel();
+      const a = new Audio('audio/' + encodeURIComponent(text) + '.mp3');
+      curAudio = a; a.onerror = () => tts(text); a.play().catch(() => tts(text));
+      return;
+    } catch (e) {}
+  }
+  tts(text);
+}
+function tts(text){
   if (!hasSpeech) return;
   try {
     speechSynthesis.cancel();
@@ -502,6 +1257,7 @@ function speak(text){
   } catch (e) {}
 }
 function voiceNote(){
+  if (CLIPS.size) return '';
   if (!hasSpeech) return '<div class="notice">Trình duyệt này không đọc được tiếng Nhật. Hãy mở trang bằng Chrome, Safari hoặc Edge bản mới.</div>';
   if (voicesChecked && !jaVoice) return '<div class="notice">Thiết bị chưa có giọng đọc tiếng Nhật nên phát âm có thể không chuẩn. Bạn có thể cài thêm giọng tiếng Nhật trong phần cài đặt Chuyển văn bản thành giọng nói (Text-to-speech) của máy.</div>';
   return '';
@@ -780,30 +1536,41 @@ function renderQZ(){
 
 
 /* ---------- 4. Vocabulary ---------- */
-/* topic 0 = tất cả chủ đề; sc lọc theo bảng chữ của từ; ro bật/tắt romaji */
-const vc = {topic:1, sc:'all', ro:true, mode:'list', hide:false, open:new Set(), front:'jp', deck:[], total:0, known:0, flipped:false,
+/* topic 0 = tất cả chủ đề; sc lọc theo bảng chữ của từ; ro bật/tắt romaji;
+   kj: 'n5' (mặc định, chỉ kanji N5 kèm furigana) | 'all' (mọi kanji, gắn nhãn N4+) | 'off' (ẩn kanji); ex bật/tắt câu ví dụ */
+const vc = {topic:1, sc:'all', ro:true, kj:store.kj || 'n5', ex:store.ex !== false, mode:'list', hide:false, open:new Set(), front:'jp', deck:[], total:0, known:0, flipped:false,
   dir:'jp2vi', len:10, phase:'setup', qs:[], i:0, score:0, picked:null, results:[], missed:[]};
 const vcWords = () => (vc.topic ? TOPICS[vc.topic - 1].words : ALLVOCAB).filter(w => vc.sc === 'all' || w.sc === vc.sc);
-const wSize = w => w.length <= 4 ? '' : w.length <= 8 ? ' mid' : ' sm';
+const kjShown = w => !!w.kj && vc.kj !== 'off' && (vc.kj === 'all' || w.n5);
+const kjPool = () => vcWords().filter(w => w.kj && (vc.kj === 'all' || w.n5));
+const vqPool = () => vc.dir === 'kj2kana' ? kjPool() : vcWords();
+const vqField = () => (vc.dir === 'jp2vi' || vc.dir === 'listen') ? 'm' : 'w';
+const wSize = n => n <= 4 ? '' : n <= 8 ? ' mid' : ' sm';
+const headHTML = w => kjShown(w) ? `<ruby>${w.kj}<rt>${w.w}</rt></ruby>` : w.w;
+const lvTag = w => (w.kj && vc.kj === 'all') ? `<span class="lv${w.n5 ? ' n5' : ''}">${w.n5 ? 'N5' : 'N4+'}</span>` : '';
+const plainEx = s => s.replace(/[「」]/g, '');
 function vcReset(){ vc.deck = shuffle(vcWords().slice()); vc.total = vc.deck.length; vc.known = 0; vc.flipped = false; }
 function vcReload(){ vc.open.clear(); vc.phase = 'setup'; vcReset(); }
 function vcFlip(){ if (!vc.deck.length) return; vc.flipped = !vc.flipped; if (vc.flipped) speakJa(vc.deck[0].r); renderVocab(); }
 function vcAgain(){ const w = vc.deck.shift(); mark(w.key, false); vc.deck.splice(Math.min(3, vc.deck.length), 0, w); vc.flipped = false; renderVocab(); }
 function vcGood(){ const w = vc.deck.shift(); mark(w.key, true); vc.known++; vc.flipped = false; renderVocab(); }
 function vqOpts(it){
-  const f = vc.dir === 'jp2vi' ? 'm' : 'w';
+  const f = vqField();
   const out = [it], used = new Set([it[f]]);
-  const add = c => { if (out.length < 4 && c.key !== it.key && !used.has(c[f])) { out.push(c); used.add(c[f]); } };
+  /* loại từ đồng âm (vd. はし 箸/橋) để câu hỏi không có hai đáp án đúng */
+  const add = c => { if (out.length < 4 && c.key !== it.key && c.w !== it.w && !used.has(c[f])) { out.push(c); used.add(c[f]); } };
+  if (vc.dir === 'kj2kana') shuffle(kjPool().slice()).forEach(add);
   shuffle(vcWords().slice()).forEach(add);
   shuffle(ALLVOCAB.slice()).forEach(add);
   return shuffle(out);
 }
+const vqSpeaksFirst = () => vc.dir === 'jp2vi' || vc.dir === 'listen';
 function vqStart(){
-  const pool = shuffle(vcWords().slice()).slice(0, vc.len);
+  const pool = shuffle(vqPool().slice()).slice(0, vc.len);
   if (!pool.length) return;
   Object.assign(vc, {qs:pool.map(it => ({item:it, opts:vqOpts(it)})), i:0, score:0, picked:null, results:[], missed:[], phase:'run'});
   renderVocab();
-  if (vc.dir === 'jp2vi') speakJa(pool[0].r);
+  if (vqSpeaksFirst()) speakJa(pool[0].r);
 }
 function vqAns(idx){
   if (vc.picked !== null) return;
@@ -822,15 +1589,18 @@ function vqNext(){
   vc.i++; vc.picked = null;
   if (vc.i >= vc.qs.length) vc.phase = 'done';
   renderVocab();
-  if (vc.phase === 'run' && vc.dir === 'jp2vi') speakJa(vc.qs[vc.i].item.r);
+  if (vc.phase === 'run' && vqSpeaksFirst()) speakJa(vc.qs[vc.i].item.r);
 }
 function vocabList(ws){
   if (!ws.length) return '<div class="box"><div class="empty-state"><b>Không có từ nào</b>Chủ đề này không có từ viết bằng bảng chữ đang lọc.</div></div>';
   const h = ws.map((w, i) => {
     const show = !vc.hide || vc.open.has(w.key);
-    return `<button type="button" class="word" data-act="v-word" data-i="${i}" ${vc.hide ? `aria-expanded="${show}"` : ''}>${mastered(w.key) ? '<span class="stamp" title="Đã thuộc">済</span>' : ''}<span class="k">${w.w}</span><span class="wr">${show ? [vc.ro ? w.ro : '', w.m, w.kj].filter(Boolean).join(' · ') : 'Bấm để xem'}</span></button>`;
+    const sub = show ? [vc.ro ? w.ro : '', w.m].filter(Boolean).join(' · ') : 'Bấm để xem';
+    const masu = show && w.masu ? `<span class="vmasu">ます: ${w.masu}</span>` : '';
+    const ex = vc.ex && show ? `<button type="button" class="vex" data-act="v-exsay" data-i="${i}" aria-label="Nghe câu ví dụ"><span class="exj">${w.ex}</span><span class="exm">${w.exm}</span></button>` : '';
+    return `<div class="vcard"><button type="button" class="vmain" data-act="v-word" data-i="${i}" ${vc.hide ? `aria-expanded="${show}"` : ''}>${mastered(w.key) ? '<span class="stamp" title="Đã thuộc">済</span>' : ''}<span class="k">${headHTML(w)}</span>${lvTag(w)}${masu}<span class="wr">${sub}</span></button>${ex}</div>`;
   }).join('');
-  return `<div class="box"><div class="bar"><p class="hint">Bấm vào từ để nghe phát âm.</p>
+  return `<div class="box"><div class="bar"><p class="hint">Bấm vào từ hoặc câu ví dụ để nghe phát âm.</p>
     <button type="button" class="linkbtn" data-act="v-hide">${vc.hide ? 'Hiện hết nghĩa' : 'Ẩn nghĩa để tự kiểm tra'}</button></div>
     <div class="voice-slot">${voiceNote()}</div><div class="words vw" style="margin-top:12px">${h}</div></div>`;
 }
@@ -838,46 +1608,53 @@ function vocabCard(){
   if (!vc.total) return '<div class="box"><div class="empty-state"><b>Chưa có thẻ nào</b></div></div>';
   if (!vc.deck.length) return `<div class="box"><div class="stage"><div class="empty-state" style="padding-bottom:8px"><b>Bạn đã nhớ hết ${vc.total} thẻ</b>Làm bài trắc nghiệm để kiểm tra lại bài này.</div>
     <div class="row-btns"><button type="button" class="btn primary" data-act="v-toquiz">Làm trắc nghiệm</button><button type="button" class="btn" data-act="v-restart">Học lại từ đầu</button></div></div></div>`;
-  const w = vc.deck[0], sz = wSize(w.w);
-  const back = `<span class="small">${w.w}</span>${vc.ro ? `<span class="rd">${w.ro}</span>` : ''}<span class="mean">${w.m}</span>${w.kj ? `<span class="small">${w.kj}</span>` : ''}`;
+  const w = vc.deck[0], kj = kjShown(w), sz = wSize(kj ? w.kj.length : w.w.length);
+  const back = `<span class="small">${w.w}</span>${w.masu ? `<span class="vmasu2">ます: ${w.masu}</span>` : ''}${vc.ro ? `<span class="rd">${w.ro}</span>` : ''}<span class="mean">${w.m}</span>${kj ? `<span class="small kj">${w.kj}</span>` : ''}${vc.ex ? `<span class="exj">${w.ex}</span><span class="exm">${w.exm}</span>` : ''}`;
   let face;
-  if (vc.front === 'jp') face = vc.flipped ? back : `<span class="big${sz}">${w.w}</span><span class="tap">Bấm để lật thẻ</span>`;
+  if (vc.front === 'jp') face = vc.flipped ? back : `<span class="big${sz}">${headHTML(w)}</span><span class="tap">Bấm để lật thẻ</span>`;
   else face = vc.flipped ? back : `<span class="mean front">${w.m}</span><span class="tap">Nhớ từ tiếng Nhật rồi bấm để lật</span>`;
   const pct = Math.round(vc.known / vc.total * 100);
   return `<div class="box"><div class="stage">
     <div class="seg" role="group" aria-label="Mặt trước của thẻ"><button type="button" data-act="v-front" data-v="jp" aria-pressed="${vc.front === 'jp'}">Mặt trước: tiếng Nhật</button><button type="button" data-act="v-front" data-v="vi" aria-pressed="${vc.front === 'vi'}">Mặt trước: nghĩa</button></div>
     <div class="stage-top"><div class="progress"><i style="width:${pct}%"></i></div><span>Đã nhớ ${vc.known}/${vc.total} · còn ${vc.deck.length} thẻ</span></div>
-    <button type="button" class="flash" data-act="v-flip" aria-label="Thẻ ghi nhớ, bấm để lật">${face}</button>
+    <button type="button" class="flash vflash" data-act="v-flip" aria-label="Thẻ ghi nhớ, bấm để lật">${face}</button>
     <div class="actions">${vc.flipped
-      ? `<button type="button" class="btn again" data-act="v-again">Chưa nhớ</button><button type="button" class="btn sm" data-act="say" data-k="${w.r.split('／')[0].replace(/[～]/g, '')}" aria-label="Nghe lại">${ICON.sound}</button><button type="button" class="btn good" data-act="v-good">Nhớ rồi</button>`
+      ? `<button type="button" class="btn again" data-act="v-again">Chưa nhớ</button><button type="button" class="btn sm" data-act="say" data-k="${w.r.split('／')[0].replace(/[～〜]/g, '')}" aria-label="Nghe lại">${ICON.sound}</button><button type="button" class="btn good" data-act="v-good">Nhớ rồi</button>`
       : '<button type="button" class="btn primary" data-act="v-flip">Lật thẻ</button>'}</div>
     <p class="keys">Phím tắt: Space để lật · 1 chưa nhớ · 2 nhớ rồi</p></div></div>`;
 }
 function vocabQuiz(){
   if (vc.phase === 'setup') {
+    const dirs = [['jp2vi','Nhìn từ, chọn nghĩa'],['vi2jp','Đọc nghĩa, chọn từ'],['kj2kana','Nhìn kanji, chọn cách đọc'],['listen','Nghe từ, chọn nghĩa']];
+    const n = vqPool().length;
+    const info = vc.dir === 'kj2kana'
+      ? `<p class="hint">${n ? `Có ${n} từ có kanji ${vc.kj === 'all' ? '' : 'N5 '}trong phạm vi đang chọn.` : `Phạm vi này chưa có từ nào có kanji ${vc.kj === 'all' ? '' : 'N5 '}. Hãy chọn chủ đề khác hoặc "Tất cả".`}</p>` : '';
     return `<div class="box"><div class="settings"><div><h2>Cài đặt trắc nghiệm</h2><p class="hint">Chỉ hỏi các từ của chủ đề đang chọn.</p></div>
       <div><div class="setting-l">Kiểu câu hỏi</div><div class="seg" role="group" aria-label="Kiểu câu hỏi">
-        <button type="button" data-act="vq-dir" data-v="jp2vi" aria-pressed="${vc.dir === 'jp2vi'}">Nhìn từ, chọn nghĩa</button>
-        <button type="button" data-act="vq-dir" data-v="vi2jp" aria-pressed="${vc.dir === 'vi2jp'}">Đọc nghĩa, chọn từ</button></div></div>
+        ${dirs.map(([v, l]) => `<button type="button" data-act="vq-dir" data-v="${v}" aria-pressed="${vc.dir === v}">${l}</button>`).join('')}</div>${info}</div>
       <div><div class="setting-l">Số câu</div><div class="seg" role="group" aria-label="Số câu">
-        ${[10, 20, 30].map(n => `<button type="button" data-act="vq-len" data-v="${n}" aria-pressed="${vc.len === n}">${n} câu</button>`).join('')}</div></div>
-      <div><button type="button" class="btn primary" data-act="vq-start" ${vcWords().length ? '' : 'disabled'}>Bắt đầu</button></div></div></div>`;
+        ${[10, 20, 30].map(k => `<button type="button" data-act="vq-len" data-v="${k}" aria-pressed="${vc.len === k}">${k} câu</button>`).join('')}</div></div>
+      ${vc.dir === 'listen' ? `<div class="voice-slot">${voiceNote()}</div>` : ''}
+      <div><button type="button" class="btn primary" data-act="vq-start" ${n ? '' : 'disabled'}>Bắt đầu</button></div></div></div>`;
   }
   if (vc.phase === 'run') {
-    const q = vc.qs[vc.i], it = q.item, ans = vc.picked !== null, j2v = vc.dir === 'jp2vi';
+    const q = vc.qs[vc.i], it = q.item, ans = vc.picked !== null, f = vqField();
     const dots = vc.qs.map((_, j) => `<i class="${j < vc.results.length ? (vc.results[j] ? 'ok' : 'no') : (j === vc.i ? 'now' : '')}"></i>`).join('');
-    const prompt = j2v
-      ? `<div class="q-kana${wSize(it.w)}">${it.w}</div><button type="button" class="btn sm" data-act="vq-say">${ICON.sound}Nghe</button>`
-      : `<div class="q-mean">${it.m}</div>`;
+    let prompt;
+    if (vc.dir === 'jp2vi') prompt = `<div class="q-kana${wSize(it.w.length)}">${it.w}</div><button type="button" class="btn sm" data-act="vq-say">${ICON.sound}Nghe</button>`;
+    else if (vc.dir === 'vi2jp') prompt = `<div class="q-mean">${it.m}</div>`;
+    else if (vc.dir === 'kj2kana') prompt = `<div class="q-kana${wSize(it.kj.length)}">${it.kj}</div>`;
+    else prompt = `<button type="button" class="q-listen" data-act="vq-say" aria-label="Nghe lại từ">${ICON.soundBig}</button><p class="hint">${ans ? `<span class="kana" style="font-size:1.4rem;color:var(--ink)">${it.w}</span> · ${it.m}` : 'Bấm để nghe lại'}</p>`;
     const opts = q.opts.map((o, j) => {
-      let cls = 'opt ' + (j2v ? 'vo' : 'kana jw');
+      let cls = 'opt ' + (f === 'm' ? 'vo' : 'kana jw');
       if (ans) cls += o === it ? ' right' : (j === vc.picked ? ' wrong' : ' dim');
-      return `<button type="button" class="${cls}" data-act="vq-ans" data-i="${j}" ${ans ? 'disabled' : ''}>${j2v ? o.m : o.w}</button>`;
+      return `<button type="button" class="${cls}" data-act="vq-ans" data-i="${j}" ${ans ? 'disabled' : ''}>${o[f]}</button>`;
     }).join('');
     let fb = '';
     if (ans) {
       const ok = q.opts[vc.picked] === it;
-      fb = `<p class="fb ${ok ? 'ok' : 'no'}">${ok ? 'Chính xác!' : 'Chưa đúng.'} <span class="kana">${it.w}</span>${vc.ro ? ` (${it.ro})` : ''} nghĩa là <b>${it.m}</b>.</p>
+      const what = vc.dir === 'kj2kana' ? `<span class="kana">${it.kj}</span> đọc là <b class="kana">${it.w}</b>, nghĩa là` : `<span class="kana">${it.w}</span>${vc.ro ? ` (${it.ro})` : ''} nghĩa là`;
+      fb = `<p class="fb ${ok ? 'ok' : 'no'}">${ok ? 'Chính xác!' : 'Chưa đúng.'} ${what} <b>${it.m}</b>.</p>
         <button type="button" class="btn primary" data-act="vq-next">${vc.i + 1 < vc.qs.length ? 'Câu tiếp' : 'Xem kết quả'}</button>`;
     }
     return `<div class="box"><div class="stage"><div class="q-head"><span>Câu ${vc.i + 1}/${vc.qs.length}</span><span>Đúng ${vc.score}</span></div><div class="dots">${dots}</div>
@@ -887,7 +1664,7 @@ function vocabQuiz(){
   const r = vc.score / vc.qs.length;
   const msg = r >= 0.9 ? 'Rất tốt! Bạn đã nắm chắc bài này.' : r >= 0.7 ? 'Khá tốt. Ôn thêm các từ sai rồi làm lại nhé.' : 'Cần ôn thêm. Học lại bằng thẻ nhớ rồi quay lại làm bài.';
   return `<div class="box"><div class="stage"><div class="score">${vc.score}<small>/${vc.qs.length}</small></div><p class="fb">${msg}</p>
-    ${vc.missed.length ? `<div class="missed">${vc.missed.map(w => `<span><b>${w.w}</b>${w.m}</span>`).join('')}</div>` : ''}
+    ${vc.missed.length ? `<div class="missed">${vc.missed.map(w => `<span><b>${vc.dir === 'kj2kana' ? w.kj : w.w}</b>${vc.dir === 'kj2kana' ? w.w + ' · ' : ''}${w.m}</span>`).join('')}</div>` : ''}
     <div class="row-btns">${vc.missed.length ? '<button type="button" class="btn primary" data-act="vq-review">Ôn từ sai bằng thẻ nhớ</button>' : ''}
     <button type="button" class="btn${vc.missed.length ? '' : ' primary'}" data-act="vq-start">Làm bài mới</button><button type="button" class="btn" data-act="vq-setup">Đổi cài đặt</button></div></div></div>`;
 }
@@ -896,14 +1673,23 @@ function renderVocab(){
   const chips = [{n:0, t:'Tất cả'}, ...TOPICS].map(t => `<button type="button" class="chip txt" data-act="v-topic" data-v="${t.n}" aria-pressed="${t.n === vc.topic}">${t.t}</button>`).join('');
   const scs = [['all','Mọi từ'],['hira','Từ Hiragana'],['kata','Từ Katakana']]
     .map(([v, l]) => `<button type="button" data-act="v-sc" data-v="${v}" aria-pressed="${vc.sc === v}">${l}</button>`).join('');
+  const kjs = [['n5','Kanji N5'],['all','Mọi kanji'],['off','Ẩn kanji']]
+    .map(([v, l]) => `<button type="button" data-act="v-kj" data-v="${v}" aria-pressed="${vc.kj === v}">${l}</button>`).join('');
   const got = ws.filter(w => mastered(w.key)).length;
   const modes = [['list','Danh sách'],['card','Thẻ nhớ'],['quiz','Trắc nghiệm']]
     .map(([v, l]) => `<button type="button" data-act="v-mode" data-v="${v}" aria-pressed="${vc.mode === v}">${l}</button>`).join('');
   const body = vc.mode === 'list' ? vocabList(ws) : vc.mode === 'card' ? vocabCard() : vocabQuiz();
+  const kjHint = vc.kj === 'n5' ? 'Chỉ hiện kanji N5 (kèm furigana). Từ có kanji khó hơn hoặc thường viết bằng kana được để dạng kana.'
+    : vc.kj === 'all' ? 'Hiện mọi kanji. Nhãn N5 là kanji sơ cấp cần học; nhãn N4+ là kanji khó hơn, chỉ cần nhìn qua.' : 'Đang ẩn toàn bộ kanji, chỉ học bằng kana.';
   $('#p-tuvung').innerHTML = `<div class="box"><div class="bar"><div><h2>${T ? T.t : 'Tất cả chủ đề'}</h2><p class="hint">${ws.length} từ · đã thuộc ${got}/${ws.length}</p></div>
-    <div class="seg" role="group" aria-label="Cách học">${modes}</div></div><div class="chips" style="margin-top:12px">${chips}</div>
+    <div class="seg" role="group" aria-label="Cách học">${modes}</div></div><div class="chips tchips" style="margin-top:12px">${chips}</div>
     <div class="bar vfilter"><div class="seg" role="group" aria-label="Lọc theo bảng chữ">${scs}</div>
-    <button type="button" class="linkbtn" data-act="v-ro">${vc.ro ? 'Ẩn romaji' : 'Hiện romaji'}</button></div></div><div style="height:10px"></div>${body}`;
+    <div class="seg" role="group" aria-label="Hiển thị kanji">${kjs}</div></div>
+    <div class="bar vfilter"><p class="hint">${kjHint}</p>
+    <span class="vlinks"><button type="button" class="linkbtn" data-act="v-exon">${vc.ex ? 'Ẩn câu ví dụ' : 'Hiện câu ví dụ'}</button>
+    <button type="button" class="linkbtn" data-act="v-ro">${vc.ro ? 'Ẩn romaji' : 'Hiện romaji'}</button></span></div></div><div style="height:10px"></div>${body}`;
+  const tc = $('#p-tuvung .tchips'), act = tc && tc.querySelector('[aria-pressed="true"]');
+  if (tc && act) tc.scrollLeft = Math.max(0, act.offsetLeft - 16);
 }
 
 /* ---------- Reset ---------- */
@@ -980,6 +1766,9 @@ document.addEventListener('click', e => {
     case 'vq-say': speakJa(vc.qs[vc.i].item.r); break;
     case 'vq-review': vc.deck = vc.missed.slice(); vc.total = vc.deck.length; vc.known = 0; vc.flipped = false; vc.mode = 'card'; renderVocab(); break;
     case 'vq-setup': vc.phase = 'setup'; renderVocab(); break;
+    case 'v-kj': vc.kj = v; store.kj = v; save(); if (vc.mode === 'quiz') vc.phase = 'setup'; if (vc.mode === 'card') vc.flipped = false; renderVocab(); break;
+    case 'v-exon': vc.ex = !vc.ex; store.ex = vc.ex; save(); renderVocab(); break;
+    case 'v-exsay': { const w = vcWords()[+el.dataset.i]; speak(plainEx(w.ex)); ping(el); break; }
     case 'reset-ask': resetAsk = true; renderReset(); break;
     case 'reset-no': resetAsk = false; renderReset(); break;
     case 'reset-yes': store.stats = {}; save(); resetAsk = false; renderReset(); renderMeters(); fcReset(); vcReload(); showTab(curTab); break;
